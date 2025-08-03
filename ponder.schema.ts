@@ -1,20 +1,19 @@
-import { createSchema } from "ponder";
+import { createSchema } from "@ponder/core";
 
 export default createSchema((p) => ({
-  // Factory events tracking
-  SrcEscrow: p.createTable({
-    id: p.string(), // chainId-escrowAddress
+  srcEscrow: p.createTable({
+    id: p.string(),
     chainId: p.int(),
-    escrowAddress: p.string(),
+    escrowAddress: p.hex(),
     orderHash: p.hex(),
     hashlock: p.hex(),
-    maker: p.string(),
-    taker: p.string(),
-    srcToken: p.string(),
+    maker: p.hex(),
+    taker: p.hex(),
+    srcToken: p.hex(),
     srcAmount: p.bigint(),
     srcSafetyDeposit: p.bigint(),
-    dstMaker: p.string(),
-    dstToken: p.string(),
+    dstMaker: p.hex(),
+    dstToken: p.hex(),
     dstAmount: p.bigint(),
     dstSafetyDeposit: p.bigint(),
     dstChainId: p.bigint(),
@@ -22,47 +21,46 @@ export default createSchema((p) => ({
     createdAt: p.bigint(),
     blockNumber: p.bigint(),
     transactionHash: p.hex(),
-    status: p.string(), // "created", "withdrawn", "cancelled"
+    status: p.string(),
   }),
 
-  DstEscrow: p.createTable({
-    id: p.string(), // chainId-escrowAddress
+  dstEscrow: p.createTable({
+    id: p.string(),
     chainId: p.int(),
-    escrowAddress: p.string(),
+    escrowAddress: p.hex(),
     hashlock: p.hex(),
-    taker: p.string(),
+    taker: p.hex(),
     srcCancellationTimestamp: p.bigint(),
     createdAt: p.bigint(),
     blockNumber: p.bigint(),
     transactionHash: p.hex(),
-    status: p.string(), // "created", "withdrawn", "cancelled"
+    status: p.string(),
   }),
 
-  // Escrow events tracking
-  EscrowWithdrawal: p.createTable({
-    id: p.string(), // chainId-escrowAddress-transactionHash
+  escrowWithdrawal: p.createTable({
+    id: p.string(),
     chainId: p.int(),
-    escrowAddress: p.string(),
+    escrowAddress: p.hex(),
     secret: p.hex(),
     withdrawnAt: p.bigint(),
     blockNumber: p.bigint(),
     transactionHash: p.hex(),
   }),
 
-  EscrowCancellation: p.createTable({
-    id: p.string(), // chainId-escrowAddress-transactionHash
+  escrowCancellation: p.createTable({
+    id: p.string(),
     chainId: p.int(),
-    escrowAddress: p.string(),
+    escrowAddress: p.hex(),
     cancelledAt: p.bigint(),
     blockNumber: p.bigint(),
     transactionHash: p.hex(),
   }),
 
-  FundsRescued: p.createTable({
-    id: p.string(), // chainId-escrowAddress-transactionHash-logIndex
+  fundsRescued: p.createTable({
+    id: p.string(),
     chainId: p.int(),
-    escrowAddress: p.string(),
-    token: p.string(),
+    escrowAddress: p.hex(),
+    token: p.hex(),
     amount: p.bigint(),
     rescuedAt: p.bigint(),
     blockNumber: p.bigint(),
@@ -70,27 +68,26 @@ export default createSchema((p) => ({
     logIndex: p.int(),
   }),
 
-  // Cross-chain atomic swap tracking
-  AtomicSwap: p.createTable({
-    id: p.string(), // orderHash
+  atomicSwap: p.createTable({
+    id: p.string(),
     orderHash: p.hex(),
     hashlock: p.hex(),
     srcChainId: p.int(),
     dstChainId: p.int(),
-    srcEscrowAddress: p.string().optional(),
-    dstEscrowAddress: p.string().optional(),
-    srcMaker: p.string(),
-    srcTaker: p.string(),
-    dstMaker: p.string(),
-    dstTaker: p.string(),
-    srcToken: p.string(),
+    srcEscrowAddress: p.hex().optional(),
+    dstEscrowAddress: p.hex().optional(),
+    srcMaker: p.hex(),
+    srcTaker: p.hex(),
+    dstMaker: p.hex(),
+    dstTaker: p.hex(),
+    srcToken: p.hex(),
     srcAmount: p.bigint(),
-    dstToken: p.string(),
+    dstToken: p.hex(),
     dstAmount: p.bigint(),
     srcSafetyDeposit: p.bigint(),
     dstSafetyDeposit: p.bigint(),
     timelocks: p.bigint(),
-    status: p.string(), // "pending", "src_created", "dst_created", "completed", "cancelled"
+    status: p.string(),
     srcCreatedAt: p.bigint().optional(),
     dstCreatedAt: p.bigint().optional(),
     completedAt: p.bigint().optional(),
@@ -98,9 +95,8 @@ export default createSchema((p) => ({
     secret: p.hex().optional(),
   }),
 
-  // Statistics and aggregations
-  ChainStatistics: p.createTable({
-    id: p.string(), // chainId
+  chainStatistics: p.createTable({
+    id: p.string(),
     chainId: p.int(),
     totalSrcEscrows: p.bigint(),
     totalDstEscrows: p.bigint(),
