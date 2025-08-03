@@ -1,0 +1,225 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bmn-indexer-postgres
+    restart: unless-stopped
+    environment:
+      # PostgreSQL Configuration
+      POSTGRES_USER: ${POSTGRES_USER:-ponder}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ponder123}
+      POSTGRES_DB: ${POSTGRES_DB:-bmn_indexer}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+      
+      # Performance Tuning
+      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-200}
+      POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS:-256MB}
+      POSTGRES_EFFECTIVE_CACHE_SIZE: ${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
+      POSTGRES_MAINTENANCE_WORK_MEM: ${POSTGRES_MAINTENANCE_WORK_MEM:-64MB}
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: ${POSTGRES_CHECKPOINT_COMPLETION_TARGET:-0.9}
+      POSTGRES_WAL_BUFFERS: ${POSTGRES_WAL_BUFFERS:-16MB}
+      POSTGRES_DEFAULT_STATISTICS_TARGET: ${POSTGRES_DEFAULT_STATISTICS_TARGET:-100}
+      POSTGRES_RANDOM_PAGE_COST: ${POSTGRES_RANDOM_PAGE_COST:-1.1}
+      POSTGRES_EFFECTIVE_IO_CONCURRENCY: ${POSTGRES_EFFECTIVE_IO_CONCURRENCY:-200}
+      POSTGRES_WORK_MEM: ${POSTGRES_WORK_MEM:-4MB}
+      POSTGRES_MIN_WAL_SIZE: ${POSTGRES_MIN_WAL_SIZE:-80MB}
+      POSTGRES_MAX_WAL_SIZE: ${POSTGRES_MAX_WAL_SIZE:-1GB}
+    
+    command: |
+      postgres
+      -c max_connections=${POSTGRES_MAX_CONNECTIONS:-200}
+      -c shared_buffers=${POSTGRES_SHARED_BUFFERS:-256MB}
+      -c effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
+      -c maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-64MB}
+      -c checkpoint_completion_target=${POSTGRES_CHECKPOINT_COMPLETION_TARGET:-0.9}
+      -c wal_buffers=${POSTGRES_WAL_BUFFERS:-16MB}
+      -c default_statistics_target=${POSTGRES_DEFAULT_STATISTICS_TARGET:-100}
+      -c random_page_cost=${POSTGRES_RANDOM_PAGE_COST:-1.1}
+      -c effective_io_concurrency=${POSTGRES_EFFECTIVE_IO_CONCURRENCY:-200}
+      -c work_mem=${POSTGRES_WORK_MEM:-4MB}
+      -c min_wal_size=${POSTGRES_MIN_WAL_SIZE:-80MB}
+      -c max_wal_size=${POSTGRES_MAX_WAL_SIZE:-1GB}
+      -c log_statement=${POSTGRES_LOG_STATEMENT:-none}
+      -c log_duration=${POSTGRES_LOG_DURATION:-off}
+      -c log_min_duration_statement=${POSTGRES_LOG_MIN_DURATION_STATEMENT:-1000}
+      -c log_connections=${POSTGRES_LOG_CONNECTIONS:-off}
+      -c log_disconnections=${POSTGRES_LOG_DISCONNECTIONS:-off}
+      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+      -c log_timezone='UTC'
+      -c timezone='UTC'
+      -c tcp_keepalives_idle=300
+      -c tcp_keepalives_interval=30
+      -c tcp_keepalives_count=10
+    
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    
+    volumes:
+      # Data persistence
+      - postgres_data:/var/lib/postgresql/data
+      # Custom initialization scripts
+      - ./scripts/init-db:/docker-entrypoint-initdb.d:ro
+      # PostgreSQL logs
+      - postgres_logs:/var/log/postgresql
+      # Backup directory
+      - postgres_backup:/backup
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ponder} -d ${POSTGRES_DB:-bmn_indexer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    
+    networks:
+      - bmn-postgres-network
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${POSTGRES_CPU_LIMIT:-2}'
+          memory: ${POSTGRES_MEMORY_LIMIT:-2G}
+        reservations:
+          cpus: '${POSTGRES_CPU_RESERVATION:-0.5}'
+          memory: ${POSTGRES_MEMORY_RESERVATION:-512M}
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=postgres,env=${ENV:-production}"
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bmn-indexer-pgadmin
+    restart: unless-stopped
+    environment:
+      # PgAdmin Configuration
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@bmn.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      
+      # Performance Settings
+      PGADMIN_CONFIG_SESSION_DB_PATH: '/var/lib/pgadmin/sessions'
+      PGADMIN_CONFIG_STORAGE_DIR: '/var/lib/pgadmin/storage'
+      PGADMIN_CONFIG_MAX_SESSION_IDLE_TIME: ${PGADMIN_MAX_SESSION_IDLE_TIME:-60}
+      PGADMIN_CONFIG_SESSION_COOKIE_SECURE: ${PGADMIN_COOKIE_SECURE:-False}
+      PGADMIN_CONFIG_SESSION_COOKIE_HTTPONLY: 'True'
+      PGADMIN_CONFIG_SESSION_COOKIE_SAMESITE: 'Lax'
+      
+      # UI Settings
+      PGADMIN_CONFIG_SHOW_GRAVATAR_IMAGE: 'False'
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: ${PGADMIN_LOG_LEVEL:-40}
+      PGADMIN_CONFIG_FILE_LOG_LEVEL: ${PGADMIN_LOG_LEVEL:-40}
+      
+      # Security Settings
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: ${PGADMIN_ENHANCED_COOKIE_PROTECTION:-True}
+      PGADMIN_CONFIG_LOGIN_BANNER: 'BMN Indexer Database Administration'
+      PGADMIN_CONFIG_ALLOW_SAVE_PASSWORD: ${PGADMIN_ALLOW_SAVE_PASSWORD:-True}
+      PGADMIN_CONFIG_MAX_LOGIN_ATTEMPTS: ${PGADMIN_MAX_LOGIN_ATTEMPTS:-3}
+      
+      # Connection Settings
+      PGADMIN_LISTEN_ADDRESS: '0.0.0.0'
+      PGADMIN_LISTEN_PORT: 80
+    
+    ports:
+      - "${PGADMIN_PORT:-5433}:80"
+    
+    volumes:
+      # Data persistence
+      - pgadmin_data:/var/lib/pgadmin
+      # Server configuration (auto-configure PostgreSQL connection)
+      - ./scripts/pgadmin-servers.json:/pgadmin4/servers.json:ro
+      # Custom preferences
+      - ./scripts/pgadmin-preferences.json:/pgadmin4/preferences.json:ro
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "wget", "-O", "-", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    networks:
+      - bmn-postgres-network
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${PGADMIN_CPU_LIMIT:-1}'
+          memory: ${PGADMIN_MEMORY_LIMIT:-512M}
+        reservations:
+          cpus: '${PGADMIN_CPU_RESERVATION:-0.25}'
+          memory: ${PGADMIN_MEMORY_RESERVATION:-256M}
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=pgadmin,env=${ENV:-production}"
+
+volumes:
+  postgres_data:
+    name: bmn-indexer-postgres-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_DATA_PATH:-./data/postgres}
+  
+  postgres_logs:
+    name: bmn-indexer-postgres-logs
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_LOGS_PATH:-./logs/postgres}
+  
+  postgres_backup:
+    name: bmn-indexer-postgres-backup
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_BACKUP_PATH:-./backup/postgres}
+  
+  pgadmin_data:
+    name: bmn-indexer-pgadmin-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PGADMIN_DATA_PATH:-./data/pgadmin}
+
+networks:
+  bmn-postgres-network:
+    name: bmn-postgres-network
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: ${POSTGRES_NETWORK_SUBNET:-172.28.0.0/16}
+    driver_opts:
+      com.docker.network.bridge.name: br-bmn-postgres
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
