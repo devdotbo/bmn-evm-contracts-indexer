@@ -1,0 +1,32 @@
+{
+  "preferences": {
+    "dashboards:display_graphs": false,
+    "dashboards:display_server_activity": true,
+    "dashboards:refresh_rate": 10,
+    "display:show_system_objects": false,
+    "display:show_template_databases": false,
+    "editor:auto_completion": true,
+    "editor:brace_matching": true,
+    "editor:indent_guide": true,
+    "editor:line_numbers": true,
+    "editor:sql_font_size": "13",
+    "editor:tab_size": 2,
+    "editor:use_spaces": true,
+    "editor:wrap_code": false,
+    "graphs:graph_line_width": 2,
+    "graphs:use_different_data_points": true,
+    "misc:user_language": "en",
+    "paths:binary_paths": {
+      "pg": "/usr/bin",
+      "ppas": ""
+    },
+    "query_tool:auto_commit": false,
+    "query_tool:auto_rollback_on_error": true,
+    "query_tool:connection_status": true,
+    "query_tool:connection_status_fetch_time": 5,
+    "query_tool:display_connection_status": true,
+    "query_tool:font_size": "13",
+    "results_grid:thousands_separator": ",",
+    "sqleditor:query_tool_toggle": "alt+q"
+  }
+}
