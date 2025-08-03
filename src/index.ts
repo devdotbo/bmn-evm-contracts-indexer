@@ -8,7 +8,9 @@ import {
   AtomicSwap,
   ChainStatistics 
 } from "ponder:schema";
-import { formatUnits, getAddress, keccak256, encodePacked } from "viem";
+import { formatUnits, getAddress, keccak256, encodePacked, decodeEventLog } from "viem";
+import { calculateEscrowAddress } from "./utils/addressCalculation";
+import BaseEscrowAbi from "../abis/BaseEscrow.json";
 
 // Helper function to decode packed address from uint256
 function decodeAddress(packedAddress: bigint): string {
@@ -17,30 +19,142 @@ function decodeAddress(packedAddress: bigint): string {
   return getAddress(`0x${address.toString(16).padStart(40, '0')}`);
 }
 
-// Helper function to calculate CREATE2 address for escrow contracts
-function calculateEscrowAddress(
-  factoryAddress: string,
-  implementation: string,
-  salt: `0x${string}`,
-  initCodePrefix: `0x${string}`
-): string {
-  // Clone proxy init code with implementation address
-  const initCode = encodePacked(
-    ["bytes", "address", "bytes"],
-    [initCodePrefix, implementation as `0x${string}`, "0x" as `0x${string}`]
-  );
-  
-  const initCodeHash = keccak256(initCode);
-  
-  const encoded = encodePacked(
-    ["bytes1", "address", "bytes32", "bytes32"],
-    ["0xff", factoryAddress as `0x${string}`, salt, initCodeHash]
-  );
-  
-  const hash = keccak256(encoded);
-  const address = `0x${hash.slice(26)}` as `0x${string}`;
-  
-  return getAddress(address);
+// Clone proxy init code prefix (EIP-1167 minimal proxy)
+const CLONE_PROXY_PREFIX = "0x3d602d80600a3d3981f3363d3d373d3d3d363d73" as const;
+const CLONE_PROXY_SUFFIX = "0x5af43d82803e903d91602b57fd5bf3" as const;
+
+// Helper function to process BaseEscrow events from transaction logs
+async function processSrcEscrowEvent(
+  log: any,
+  escrowAddress: string,
+  chainId: number,
+  context: any
+) {
+  try {
+    const decodedLog = decodeEventLog({
+      abi: BaseEscrowAbi.abi,
+      data: log.data,
+      topics: log.topics,
+    });
+
+    // Process based on event name
+    switch (decodedLog.eventName) {
+      case "EscrowWithdrawal": {
+        const { secret } = decodedLog.args;
+        const id = `${chainId}-${escrowAddress}-${log.transactionHash}`;
+        
+        // Insert withdrawal record
+        await context.db.insert(EscrowWithdrawal).values({
+          id,
+          chainId,
+          escrowAddress,
+          secret,
+          withdrawnAt: log.blockTimestamp || Date.now(),
+          blockNumber: log.blockNumber,
+          transactionHash: log.transactionHash,
+        });
+        
+        // Update SrcEscrow status
+        const srcEscrowId = `${chainId}-${escrowAddress}`;
+        const srcEscrow = await context.db.find(SrcEscrow, { id: srcEscrowId });
+        
+        if (srcEscrow) {
+          await context.db
+            .update(SrcEscrow, { id: srcEscrowId })
+            .set({ status: "withdrawn" });
+          
+          // Update AtomicSwap
+          await context.db
+            .update(AtomicSwap, { id: srcEscrow.orderHash })
+            .set({
+              status: "completed",
+              completedAt: log.blockTimestamp || Date.now(),
+              secret,
+            });
+          
+          // Update statistics
+          await context.db
+            .update(ChainStatistics, { id: chainId.toString() })
+            .set((row) => ({
+              totalWithdrawals: row.totalWithdrawals + 1n,
+              totalVolumeWithdrawn: row.totalVolumeWithdrawn + srcEscrow.srcAmount,
+              lastUpdatedBlock: log.blockNumber,
+            }));
+        }
+        break;
+      }
+      
+      case "EscrowCancelled": {
+        const id = `${chainId}-${escrowAddress}-${log.transactionHash}`;
+        
+        // Insert cancellation record
+        await context.db.insert(EscrowCancellation).values({
+          id,
+          chainId,
+          escrowAddress,
+          cancelledAt: log.blockTimestamp || Date.now(),
+          blockNumber: log.blockNumber,
+          transactionHash: log.transactionHash,
+        });
+        
+        // Update SrcEscrow status
+        const srcEscrowId = `${chainId}-${escrowAddress}`;
+        const srcEscrow = await context.db.find(SrcEscrow, { id: srcEscrowId });
+        
+        if (srcEscrow) {
+          await context.db
+            .update(SrcEscrow, { id: srcEscrowId })
+            .set({ status: "cancelled" });
+          
+          // Update AtomicSwap
+          await context.db
+            .update(AtomicSwap, { id: srcEscrow.orderHash })
+            .set({
+              status: "cancelled",
+              cancelledAt: log.blockTimestamp || Date.now(),
+            });
+        }
+        
+        // Update statistics
+        await context.db
+          .update(ChainStatistics, { id: chainId.toString() })
+          .set((row) => ({
+            totalCancellations: row.totalCancellations + 1n,
+            lastUpdatedBlock: log.blockNumber,
+          }));
+        break;
+      }
+      
+      case "FundsRescued": {
+        const { token, amount } = decodedLog.args;
+        const id = `${chainId}-${escrowAddress}-${log.transactionHash}-${log.logIndex || 0}`;
+        
+        // Insert funds rescued record
+        await context.db.insert(FundsRescued).values({
+          id,
+          chainId,
+          escrowAddress,
+          token,
+          amount,
+          rescuedAt: log.blockTimestamp || Date.now(),
+          blockNumber: log.blockNumber,
+          transactionHash: log.transactionHash,
+          logIndex: log.logIndex || 0,
+        });
+        
+        // Update statistics
+        await context.db
+          .update(ChainStatistics, { id: chainId.toString() })
+          .set((row) => ({
+            lastUpdatedBlock: log.blockNumber,
+          }));
+        break;
+      }
+    }
+  } catch (error) {
+    // Log could not be decoded or is not a BaseEscrow event
+    console.debug(`Could not decode log from ${escrowAddress}:`, error);
+  }
 }
 
 // Initialize chain statistics
@@ -70,13 +184,40 @@ ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context })
   const chainId = context.network.chainId;
   const { srcImmutables, dstImmutablesComplement } = event.args;
   
-  // The SrcEscrowCreated event is emitted after the escrow is created
-  // We need to look at the transaction logs to find the newly created escrow address
-  // The escrow address should be in the transaction logs
+  // Calculate the escrow address using CREATE2
+  // The salt is derived from the immutables struct
+  const salt = keccak256(
+    encodePacked(
+      ["bytes32", "bytes32", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256"],
+      [
+        srcImmutables.orderHash,
+        srcImmutables.hashlock,
+        srcImmutables.maker,
+        srcImmutables.taker,
+        srcImmutables.token,
+        srcImmutables.amount,
+        srcImmutables.safetyDeposit,
+        srcImmutables.timelocks
+      ]
+    )
+  );
   
-  // For now, we'll use the factory's addressOfEscrowSrc function result
-  // In production, you might want to parse transaction logs or use the CREATE2 calculation
-  const escrowAddress = "0x" + event.transaction.hash.slice(-40); // Placeholder - needs proper implementation
+  // Get the SRC implementation address from environment
+  const srcImplementation = process.env.BMN_SRC_IMPLEMENTATION || "0x77CC1A51dC5855bcF0d9f1c1FceaeE7fb855a535";
+  
+  // Build the complete init code for the clone proxy
+  const initCode = encodePacked(
+    ["bytes", "address", "bytes"],
+    [CLONE_PROXY_PREFIX, srcImplementation as `0x${string}`, CLONE_PROXY_SUFFIX]
+  );
+  
+  // Calculate the CREATE2 address
+  const escrowAddress = calculateEscrowAddress(
+    event.log.address, // Factory address
+    srcImplementation,
+    salt,
+    initCode
+  );
   
   const id = `${chainId}-${escrowAddress}`;
   
@@ -143,6 +284,20 @@ ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context })
       totalVolumeLocked: row.totalVolumeLocked + srcImmutables.amount,
       lastUpdatedBlock: event.block.number,
     }));
+  
+  // Parse transaction logs to check for BaseEscrow events in the same transaction
+  // This allows us to capture events from SrcEscrow contracts even though
+  // we can't use the factory pattern for them
+  if (event.transactionReceipt) {
+    const escrowLogs = event.transactionReceipt.logs.filter(
+      log => log.address.toLowerCase() === escrowAddress.toLowerCase()
+    );
+    
+    // Process any BaseEscrow events from the created escrow
+    for (const log of escrowLogs) {
+      await processSrcEscrowEvent(log, escrowAddress, chainId, context);
+    }
+  }
 });
 
 // Handle DstEscrowCreated events from Factory
@@ -188,8 +343,8 @@ ponder.on("CrossChainEscrowFactory:DstEscrowCreated", async ({ event, context })
     }));
 });
 
-// Handle EscrowWithdrawal events
-ponder.on("BaseEscrow:EscrowWithdrawal", async ({ event, context }) => {
+// Handle EscrowWithdrawal events from DstEscrow contracts
+ponder.on("DstEscrow:EscrowWithdrawal", async ({ event, context }) => {
   const chainId = context.network.chainId;
   const escrowAddress = event.log.address;
   const { secret } = event.args;
@@ -207,55 +362,39 @@ ponder.on("BaseEscrow:EscrowWithdrawal", async ({ event, context }) => {
     transactionHash: event.transaction.hash,
   });
   
-  // Update escrow status
-  const srcEscrowId = `${chainId}-${escrowAddress}`;
-  const srcEscrow = await context.db.find(SrcEscrow, { id: srcEscrowId });
+  // Update DstEscrow status
+  const dstEscrowId = `${chainId}-${escrowAddress}`;
+  const dstEscrow = await context.db.find(DstEscrow, { id: dstEscrowId });
   
-  if (srcEscrow) {
+  if (dstEscrow) {
     await context.db
-      .update(SrcEscrow, { id: srcEscrowId })
+      .update(DstEscrow, { id: dstEscrowId })
       .set({ status: "withdrawn" });
     
-    // Update AtomicSwap
-    await context.db
-      .update(AtomicSwap, { id: srcEscrow.orderHash })
-      .set({
-        status: "completed",
-        completedAt: event.block.timestamp,
-        secret,
-      });
+    // Update AtomicSwap if we can find it by hashlock
+    const atomicSwap = await context.db.find(AtomicSwap, { hashlock: dstEscrow.hashlock });
+    if (atomicSwap) {
+      await context.db
+        .update(AtomicSwap, { id: atomicSwap.orderHash })
+        .set({
+          status: "completed",
+          completedAt: event.block.timestamp,
+          secret,
+        });
+    }
     
     // Update statistics
     await context.db
       .update(ChainStatistics, { id: chainId.toString() })
       .set((row) => ({
         totalWithdrawals: row.totalWithdrawals + 1n,
-        totalVolumeWithdrawn: row.totalVolumeWithdrawn + srcEscrow.srcAmount,
         lastUpdatedBlock: event.block.number,
       }));
-  } else {
-    // Check if it's a DstEscrow
-    const dstEscrowId = `${chainId}-${escrowAddress}`;
-    const dstEscrow = await context.db.find(DstEscrow, { id: dstEscrowId });
-    
-    if (dstEscrow) {
-      await context.db
-        .update(DstEscrow, { id: dstEscrowId })
-        .set({ status: "withdrawn" });
-      
-      // Update statistics
-      await context.db
-        .update(ChainStatistics, { id: chainId.toString() })
-        .set((row) => ({
-          totalWithdrawals: row.totalWithdrawals + 1n,
-          lastUpdatedBlock: event.block.number,
-        }));
-    }
   }
 });
 
-// Handle EscrowCancelled events
-ponder.on("BaseEscrow:EscrowCancelled", async ({ event, context }) => {
+// Handle EscrowCancelled events from DstEscrow contracts
+ponder.on("DstEscrow:EscrowCancelled", async ({ event, context }) => {
   const chainId = context.network.chainId;
   const escrowAddress = event.log.address;
   
@@ -271,32 +410,14 @@ ponder.on("BaseEscrow:EscrowCancelled", async ({ event, context }) => {
     transactionHash: event.transaction.hash,
   });
   
-  // Update escrow status
-  const srcEscrowId = `${chainId}-${escrowAddress}`;
-  const srcEscrow = await context.db.find(SrcEscrow, { id: srcEscrowId });
+  // Update DstEscrow status
+  const dstEscrowId = `${chainId}-${escrowAddress}`;
+  const dstEscrow = await context.db.find(DstEscrow, { id: dstEscrowId });
   
-  if (srcEscrow) {
+  if (dstEscrow) {
     await context.db
-      .update(SrcEscrow, { id: srcEscrowId })
+      .update(DstEscrow, { id: dstEscrowId })
       .set({ status: "cancelled" });
-    
-    // Update AtomicSwap
-    await context.db
-      .update(AtomicSwap, { id: srcEscrow.orderHash })
-      .set({
-        status: "cancelled",
-        cancelledAt: event.block.timestamp,
-      });
-  } else {
-    // Check if it's a DstEscrow
-    const dstEscrowId = `${chainId}-${escrowAddress}`;
-    const dstEscrow = await context.db.find(DstEscrow, { id: dstEscrowId });
-    
-    if (dstEscrow) {
-      await context.db
-        .update(DstEscrow, { id: dstEscrowId })
-        .set({ status: "cancelled" });
-    }
   }
   
   // Update statistics
@@ -308,8 +429,8 @@ ponder.on("BaseEscrow:EscrowCancelled", async ({ event, context }) => {
     }));
 });
 
-// Handle FundsRescued events
-ponder.on("BaseEscrow:FundsRescued", async ({ event, context }) => {
+// Handle FundsRescued events from DstEscrow contracts
+ponder.on("DstEscrow:FundsRescued", async ({ event, context }) => {
   const chainId = context.network.chainId;
   const escrowAddress = event.log.address;
   const { token, amount } = event.args;
@@ -336,3 +457,7 @@ ponder.on("BaseEscrow:FundsRescued", async ({ event, context }) => {
       lastUpdatedBlock: event.block.number,
     }));
 });
+
+// For SrcEscrow events, we need to handle them differently since we can't use the factory pattern
+// We'll need to parse events from transactions that created SrcEscrows
+// This requires tracking escrow addresses when they're created and checking logs in those transactions

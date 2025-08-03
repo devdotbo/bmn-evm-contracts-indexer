@@ -7,7 +7,7 @@ export function calculateEscrowAddress(
   salt: `0x${string}`,
   initCode: `0x${string}`
 ): string {
-  // CREATE2 address calculation
+  // CREATE2 address calculation according to EIP-1014
   // address = keccak256(0xff ++ factory ++ salt ++ keccak256(initCode))[12:]
   
   const initCodeHash = keccak256(initCode);
@@ -18,6 +18,7 @@ export function calculateEscrowAddress(
   );
   
   const hash = keccak256(encoded);
+  // Extract the last 20 bytes (40 hex characters) as the address
   const address = `0x${hash.slice(26)}` as `0x${string}`;
   
   return getAddress(address);
