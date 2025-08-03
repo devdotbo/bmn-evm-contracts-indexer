@@ -103,6 +103,42 @@ psql: ## Connect to PostgreSQL
 	@echo "Connecting to PostgreSQL..."
 	@docker-compose exec postgres psql -U postgres -d ponder
 
+# PostgreSQL Standalone Commands
+.PHONY: postgres-up
+postgres-up: ## Start PostgreSQL and PgAdmin using standalone compose file
+	@echo "Starting PostgreSQL services..."
+	@./scripts/postgres-manager.sh start
+
+.PHONY: postgres-down
+postgres-down: ## Stop PostgreSQL and PgAdmin standalone services
+	@echo "Stopping PostgreSQL services..."
+	@./scripts/postgres-manager.sh stop
+
+.PHONY: postgres-restart
+postgres-restart: ## Restart PostgreSQL and PgAdmin standalone services
+	@echo "Restarting PostgreSQL services..."
+	@./scripts/postgres-manager.sh restart
+
+.PHONY: postgres-status
+postgres-status: ## Check PostgreSQL services status
+	@./scripts/postgres-manager.sh status
+
+.PHONY: postgres-logs
+postgres-logs: ## View PostgreSQL services logs
+	@./scripts/postgres-manager.sh logs
+
+.PHONY: postgres-backup
+postgres-backup: ## Create PostgreSQL database backup
+	@./scripts/postgres-manager.sh backup
+
+.PHONY: postgres-psql
+postgres-psql: ## Connect to PostgreSQL console (standalone)
+	@./scripts/postgres-manager.sh psql
+
+.PHONY: postgres-clean
+postgres-clean: ## Clean all PostgreSQL data and volumes
+	@./scripts/postgres-manager.sh clean
+
 # Additional Helpful Commands
 .PHONY: install
 install: ## Install dependencies with pnpm
