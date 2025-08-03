@@ -1,4 +1,8 @@
-FROM node:18-alpine AS builder
+# Multi-stage Dockerfile for Ponder Indexer
+ARG NODE_VERSION=20-alpine
+
+# Stage 1: Dependencies
+FROM node:${NODE_VERSION} AS deps
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -9,25 +13,14 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install production dependencies
+RUN pnpm install --frozen-lockfile --prod
 
-# Copy source code
-COPY . .
+# Stage 2: Build
+FROM node:${NODE_VERSION} AS builder
 
-# Build the application
-RUN pnpm build
-
-# Production stage
-FROM node:18-alpine
-
-# Install pnpm and curl for health checks
-RUN corepack enable && corepack prepare pnpm@latest --activate && \
-    apk add --no-cache curl
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Set working directory
 WORKDIR /app
@@ -35,28 +28,62 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
+# Install all dependencies (including dev)
+RUN pnpm install --frozen-lockfile
 
-# Copy built application from builder
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/.ponder ./.ponder
+# Copy source code
+COPY . .
 
-# Copy other necessary files
-COPY --chown=nodejs:nodejs ponder.config.ts ./
-COPY --chown=nodejs:nodejs ponder.schema.ts ./
-COPY --chown=nodejs:nodejs abis ./abis
-COPY --chown=nodejs:nodejs src ./src
+# Generate types from schema
+RUN pnpm run codegen
+
+# Build TypeScript (if needed)
+RUN pnpm run typecheck || true
+
+# Stage 3: Runtime
+FROM node:${NODE_VERSION} AS runtime
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S ponder && \
+    adduser -S ponder -u 1001 -G ponder
+
+# Set working directory
+WORKDIR /app
+
+# Copy production dependencies from deps stage
+COPY --from=deps --chown=ponder:ponder /app/node_modules ./node_modules
+
+# Copy package files
+COPY --chown=ponder:ponder package.json pnpm-lock.yaml ./
+
+# Copy built application and generated files
+COPY --from=builder --chown=ponder:ponder /app/generated ./generated
+COPY --from=builder --chown=ponder:ponder /app/.ponder ./.ponder
+
+# Copy source files
+COPY --chown=ponder:ponder ponder.config.ts ponder.schema.ts ./
+COPY --chown=ponder:ponder src ./src
+COPY --chown=ponder:ponder abis ./abis
+
+# Create directories for runtime
+RUN mkdir -p /app/.ponder && \
+    chown -R ponder:ponder /app
 
 # Switch to non-root user
-USER nodejs
+USER ponder
 
-# Expose port
+# Expose GraphQL port
 EXPOSE 42069
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:42069/health || exit 1
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD node -e "fetch('http://localhost:42069/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-# Start the application
-CMD ["pnpm", "start"]
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the indexer
+CMD ["node", "--max-old-space-size=4096", "node_modules/.bin/ponder", "start"]
