@@ -1,31 +1,34 @@
-version: '3.8'
+version: '3.9'
 
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: bmn-indexer-postgres
+    container_name: bmn-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ponder}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ponder123}
       POSTGRES_DB: ${POSTGRES_DB:-bmn_indexer}
-      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+      POSTGRES_INITDB_ARGS: --encoding=UTF-8 --lc-collate=C --lc-ctype=C
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db:/docker-entrypoint-initdb.d
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ponder} -d ${POSTGRES_DB:-bmn_indexer}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - bmn-network
 
+  # PgAdmin for Database Management
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: bmn-indexer-pgadmin
+    container_name: bmn-pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@bmn.local}
@@ -36,52 +39,113 @@ services:
       - "${PGADMIN_PORT:-5433}:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+      - ./scripts/pgadmin-servers.json:/pgadmin4/servers.json:ro
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - bmn-network
 
+  # Ponder Indexer Service
   indexer:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NODE_VERSION: 20-alpine
     container_name: bmn-indexer
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ponder}:${POSTGRES_PASSWORD:-ponder123}@postgres:5432/${POSTGRES_DB:-bmn_indexer}
-      DATABASE_SCHEMA: ${DATABASE_SCHEMA:-public}
+      # Node.js Configuration
       NODE_ENV: ${NODE_ENV:-production}
+      NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=4096}
+      
+      # Ponder Configuration
       PORT: ${PORT:-42069}
-      # RPC URLs
+      PONDER_LOG_LEVEL: ${PONDER_LOG_LEVEL:-info}
+      PONDER_TELEMETRY_DISABLED: ${PONDER_TELEMETRY_DISABLED:-false}
+      
+      # Database Configuration
+      DATABASE_URL: postgres://${POSTGRES_USER:-ponder}:${POSTGRES_PASSWORD:-ponder123}@postgres:5432/${POSTGRES_DB:-bmn_indexer}
+      DATABASE_SCHEMA: ${DATABASE_SCHEMA:-public}
+      
+      # RPC Endpoints
       PONDER_RPC_URL_1: ${PONDER_RPC_URL_1}
       PONDER_RPC_URL_10: ${PONDER_RPC_URL_10}
-      PONDER_RPC_URL_42161: ${PONDER_RPC_URL_42161}
-      PONDER_RPC_URL_8453: ${PONDER_RPC_URL_8453}
       PONDER_RPC_URL_137: ${PONDER_RPC_URL_137}
+      PONDER_RPC_URL_8453: ${PONDER_RPC_URL_8453}
+      PONDER_RPC_URL_42161: ${PONDER_RPC_URL_42161}
+      PONDER_RPC_URL_42793: ${PONDER_RPC_URL_42793}
+      
+      # WebSocket Endpoints (optional)
+      PONDER_WS_URL_1: ${PONDER_WS_URL_1:-}
+      PONDER_WS_URL_10: ${PONDER_WS_URL_10:-}
+      PONDER_WS_URL_137: ${PONDER_WS_URL_137:-}
+      PONDER_WS_URL_8453: ${PONDER_WS_URL_8453:-}
+      PONDER_WS_URL_42161: ${PONDER_WS_URL_42161:-}
+      PONDER_WS_URL_42793: ${PONDER_WS_URL_42793:-}
+      
+      # Start Blocks
+      BASE_START_BLOCK: ${BASE_START_BLOCK:-0}
+      ETHERLINK_START_BLOCK: ${ETHERLINK_START_BLOCK:-0}
     ports:
-      - "${PORT:-42069}:${PORT:-42069}"
+      - "${PORT:-42069}:42069"
+    volumes:
+      # Mount source code for development (comment out for production)
+      # - ./src:/app/src:ro
+      # - ./ponder.config.ts:/app/ponder.config.ts:ro
+      # - ./ponder.schema.ts:/app/ponder.schema.ts:ro
+      
+      # Persist Ponder cache
+      - ponder_cache:/app/.ponder
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-42069}/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:42069/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     networks:
       - bmn-network
-    volumes:
-      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Optional: Redis for caching (uncomment if needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: bmn-redis
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - bmn-network
+
+# Volumes
 volumes:
   postgres_data:
-    name: bmn-indexer-postgres-data
+    name: bmn-postgres-data
   pgadmin_data:
-    name: bmn-indexer-pgadmin-data
+    name: bmn-pgadmin-data
+  ponder_cache:
+    name: bmn-ponder-cache
+  # redis_data:
+  #   name: bmn-redis-data
 
+# Networks
 networks:
   bmn-network:
-    name: bmn-indexer-network
+    name: bmn-network
     driver: bridge
