@@ -1,5 +1,7 @@
 {
   "name": "bmn-evm-contracts-indexer",
+  "version": "1.0.0",
+  "description": "Ponder indexer for Bridge Me Not (BMN) atomic swap protocol",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +11,9 @@
     "codegen": "ponder codegen",
     "serve": "ponder serve",
     "lint": "eslint .",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "clean": "rm -rf .ponder generated/",
+    "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "ponder": "^0.12.0",
@@ -20,7 +24,8 @@
     "@types/node": "^20.10.0",
     "eslint": "^8.54.0",
     "eslint-config-ponder": "^0.12.0",
-    "typescript": "^5.3.2"
+    "typescript": "^5.3.2",
+    "prettier": "^3.0.0"
   },
   "engines": {
     "node": ">=18.14"

@@ -1,19 +1,51 @@
 # Dependencies
-/node_modules
+node_modules/
 
-# Debug
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Ponder generated files
+.ponder/
+generated/
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# Misc
-.DS_Store
+# Testing
+coverage/
+.nyc_output/
 
-# Env files
-.env
-.env*.local
+# Temporary files
+tmp/
+temp/
+*.tmp
 
-# Ponder
-/generated/
-/.ponder/
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache
+.cache/
+.parcel-cache/
