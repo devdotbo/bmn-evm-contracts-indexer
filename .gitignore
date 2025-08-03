@@ -49,3 +49,14 @@ temp/
 # Cache
 .cache/
 .parcel-cache/
+
+# PostgreSQL data and volumes
+data/
+backup/
+.env.postgres
+
+# Docker volumes
+postgres_data/
+pgadmin_data/
+postgres_logs/
+postgres_backup/
