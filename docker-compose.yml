@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bmn-indexer-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ponder}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ponder123}
+      POSTGRES_DB: ${POSTGRES_DB:-bmn_indexer}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ponder} -d ${POSTGRES_DB:-bmn_indexer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bmn-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bmn-indexer-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@bmn.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5433}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bmn-network
+
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bmn-indexer
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ponder}:${POSTGRES_PASSWORD:-ponder123}@postgres:5432/${POSTGRES_DB:-bmn_indexer}
+      DATABASE_SCHEMA: ${DATABASE_SCHEMA:-public}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-42069}
+      # RPC URLs
+      PONDER_RPC_URL_1: ${PONDER_RPC_URL_1}
+      PONDER_RPC_URL_10: ${PONDER_RPC_URL_10}
+      PONDER_RPC_URL_42161: ${PONDER_RPC_URL_42161}
+      PONDER_RPC_URL_8453: ${PONDER_RPC_URL_8453}
+      PONDER_RPC_URL_137: ${PONDER_RPC_URL_137}
+    ports:
+      - "${PORT:-42069}:${PORT:-42069}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-42069}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - bmn-network
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
+    name: bmn-indexer-postgres-data
+  pgadmin_data:
+    name: bmn-indexer-pgadmin-data
+
+networks:
+  bmn-network:
+    name: bmn-indexer-network
+    driver: bridge
