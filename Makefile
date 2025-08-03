@@ -1,106 +1,178 @@
+# BMN EVM Contracts Indexer - Makefile
+# Comprehensive build automation for the Bridge Me Not indexer
+
 .PHONY: help
 help: ## Show this help message
-	@echo 'Usage: make [target]'
-	@echo ''
-	@echo 'Targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo "BMN EVM Contracts Indexer - Available Commands"
+	@echo "=============================================="
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: setup
-setup: ## Initial setup: copy env file and install dependencies
-	@cp -n .env.example .env || true
-	@echo "✅ Environment file created. Please update .env with your RPC URLs"
-	@pnpm install
-
-.PHONY: db-up
-db-up: ## Start PostgreSQL and PgAdmin containers
-	@docker-compose up -d postgres pgadmin
-	@echo "⏳ Waiting for PostgreSQL to be ready..."
-	@sleep 5
-	@docker-compose exec postgres pg_isready -U ponder -d bmn_indexer || true
-	@echo "✅ PostgreSQL is ready!"
-	@echo "📊 PgAdmin available at: http://localhost:5433"
-
-.PHONY: db-down
-db-down: ## Stop database containers
-	@docker-compose down
-
-.PHONY: db-reset
-db-reset: ## Reset database (WARNING: destroys all data)
-	@echo "⚠️  WARNING: This will destroy all database data!"
-	@echo "Press Ctrl+C to cancel or Enter to continue..."
-	@read confirm
-	@docker-compose down -v
-	@echo "✅ Database reset complete"
-
-.PHONY: db-logs
-db-logs: ## Show database logs
-	@docker-compose logs -f postgres
-
+# Development Commands
 .PHONY: dev
-dev: db-up ## Start development environment (database + indexer)
-	@echo "🚀 Starting indexer in development mode..."
-	@pnpm dev
+dev: ## Start dev environment with database and hot reloading
+	@echo "Starting development environment..."
+	@$(MAKE) db-up
+	@sleep 3
+	@pnpm run dev
 
-.PHONY: build
-build: ## Build the project
-	@pnpm build
+.PHONY: clean
+clean: ## Clean build artifacts and .ponder directory
+	@echo "Cleaning build artifacts..."
+	@rm -rf .ponder
+	@rm -rf dist
+	@rm -rf node_modules/.cache
+	@echo "Clean complete!"
 
-.PHONY: start
-start: ## Start production indexer (requires built project)
-	@pnpm start
-
-.PHONY: docker-build
-docker-build: ## Build Docker image for the indexer
-	@docker-compose build indexer
-
+# Production Commands
 .PHONY: docker-up
-docker-up: ## Run all services with Docker Compose
+docker-up: ## Start all services with Docker Compose
+	@echo "Starting all services with Docker Compose..."
 	@docker-compose up -d
-	@echo "✅ All services started!"
-	@echo "📊 PgAdmin: http://localhost:5433"
-	@echo "🔍 GraphQL: http://localhost:42069/graphql"
-	@echo "❤️  Health: http://localhost:42069/health"
+	@echo "Services started! GraphQL available at http://localhost:42069/graphql"
 
 .PHONY: docker-down
-docker-down: ## Stop all Docker services
+docker-down: ## Stop all Docker Compose services
+	@echo "Stopping Docker Compose services..."
 	@docker-compose down
 
 .PHONY: docker-logs
-docker-logs: ## Show logs for all services
+docker-logs: ## View Docker Compose logs
 	@docker-compose logs -f
 
-.PHONY: docker-logs-indexer
-docker-logs-indexer: ## Show only indexer logs
-	@docker-compose logs -f indexer
+.PHONY: start
+start: ## Start production indexer
+	@echo "Starting production indexer..."
+	@pnpm run start
 
-.PHONY: status
-status: ## Check status of all services
-	@echo "🔍 Checking service status..."
-	@docker-compose ps
-	@echo ""
-	@echo "🏥 Health check:"
-	@curl -s http://localhost:42069/health || echo "❌ Indexer not responding"
-	@echo ""
-	@echo "📈 Ready check:"
-	@curl -s http://localhost:42069/ready || echo "❌ Indexer not ready"
+.PHONY: serve
+serve: ## Start GraphQL server separately
+	@echo "Starting GraphQL server..."
+	@pnpm run serve
+
+# Code Quality Commands
+.PHONY: lint
+lint: ## Run ESLint
+	@echo "Running ESLint..."
+	@pnpm run lint
+
+.PHONY: lint-fix
+lint-fix: ## Run ESLint with auto-fix
+	@echo "Running ESLint with auto-fix..."
+	@pnpm run lint -- --fix
+
+.PHONY: typecheck
+typecheck: ## Run TypeScript type checking
+	@echo "Running TypeScript type checking..."
+	@pnpm run typecheck
+
+.PHONY: format
+format: ## Format code with Prettier
+	@echo "Formatting code with Prettier..."
+	@pnpm run format
+
+.PHONY: format-check
+format-check: ## Check code formatting without changes
+	@echo "Checking code formatting..."
+	@pnpm run format -- --check
+
+# Database Operations
+.PHONY: db
+db: ## Access Ponder database CLI
+	@echo "Opening Ponder database CLI..."
+	@pnpm run db
+
+.PHONY: codegen
+codegen: ## Generate TypeScript types from schema
+	@echo "Generating TypeScript types from schema..."
+	@pnpm run codegen
+
+.PHONY: db-up
+db-up: ## Start PostgreSQL and PgAdmin
+	@echo "Starting PostgreSQL and PgAdmin..."
+	@docker-compose up -d postgres pgadmin
+	@echo "PostgreSQL: localhost:5432"
+	@echo "PgAdmin: http://localhost:5050"
+
+.PHONY: db-down
+db-down: ## Stop PostgreSQL and PgAdmin
+	@echo "Stopping PostgreSQL and PgAdmin..."
+	@docker-compose stop postgres pgadmin
 
 .PHONY: psql
-psql: ## Connect to PostgreSQL with psql
-	@docker-compose exec postgres psql -U ponder -d bmn_indexer
+psql: ## Connect to PostgreSQL
+	@echo "Connecting to PostgreSQL..."
+	@docker-compose exec postgres psql -U postgres -d ponder
 
-.PHONY: db-stats
-db-stats: ## Show database statistics
-	@docker-compose exec postgres psql -U ponder -d bmn_indexer -c "SELECT * FROM indexing_stats;"
+# Additional Helpful Commands
+.PHONY: install
+install: ## Install dependencies with pnpm
+	@echo "Installing dependencies..."
+	@pnpm install
 
-.PHONY: clean
-clean: ## Clean build artifacts and dependencies
-	@rm -rf dist node_modules .ponder
-	@echo "✅ Cleaned build artifacts"
+.PHONY: build
+build: ## Build the project
+	@echo "Building project..."
+	@pnpm run build
 
 .PHONY: test
-test: ## Run tests (when available)
-	@echo "⚠️  No tests configured yet"
+test: ## Run tests (if available)
+	@echo "Running tests..."
+	@pnpm run test || echo "No test script defined"
 
-.PHONY: lint
-lint: ## Run linter (when available)
-	@echo "⚠️  No linter configured yet"
+.PHONY: deps-update
+deps-update: ## Update dependencies
+	@echo "Updating dependencies..."
+	@pnpm update
+
+.PHONY: deps-check
+deps-check: ## Check for outdated dependencies
+	@echo "Checking for outdated dependencies..."
+	@pnpm outdated
+
+.PHONY: env-setup
+env-setup: ## Copy .env.example to .env if not exists
+	@if [ ! -f .env ]; then \
+		echo "Creating .env from .env.example..."; \
+		cp .env.example .env; \
+		echo "Please update .env with your configuration"; \
+	else \
+		echo ".env already exists"; \
+	fi
+
+.PHONY: logs
+logs: ## View indexer logs (tail)
+	@tail -f .ponder/logs/*.log 2>/dev/null || echo "No logs found. Start the indexer first."
+
+.PHONY: status
+status: ## Check service status
+	@echo "Checking service status..."
+	@echo "\nDocker services:"
+	@docker-compose ps
+	@echo "\nNode processes:"
+	@ps aux | grep -E "ponder|node" | grep -v grep || echo "No indexer processes running"
+
+.PHONY: reset
+reset: ## Reset database and clean artifacts
+	@echo "Resetting database and cleaning artifacts..."
+	@$(MAKE) db-down
+	@$(MAKE) clean
+	@$(MAKE) db-up
+	@echo "Reset complete!"
+
+.PHONY: setup
+setup: ## Initial project setup
+	@echo "Setting up project..."
+	@$(MAKE) env-setup
+	@$(MAKE) install
+	@$(MAKE) codegen
+	@echo "Setup complete! Run 'make dev' to start development"
+
+# Utility targets
+.PHONY: check-deps
+check-deps:
+	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required but not installed. Install with: npm install -g pnpm"; exit 1; }
+	@command -v docker >/dev/null 2>&1 || { echo "Docker is required but not installed."; exit 1; }
+	@command -v docker-compose >/dev/null 2>&1 || { echo "Docker Compose is required but not installed."; exit 1; }
+
+# Default target
+.DEFAULT_GOAL := help
