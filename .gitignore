@@ -60,3 +60,6 @@ postgres_data/
 pgadmin_data/
 postgres_logs/
 postgres_backup/
+# Unrelated analysis files
+agent-architecture-analysis.md
+
