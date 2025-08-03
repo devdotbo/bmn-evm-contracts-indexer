@@ -3,7 +3,7 @@ version: '3.9'
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    image: postgres:latest
     container_name: bmn-postgres
     restart: unless-stopped
     environment:
@@ -15,7 +15,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./scripts/init-db/01-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ponder} -d ${POSTGRES_DB:-bmn_indexer}"]
       interval: 10s
@@ -25,26 +25,6 @@ services:
     networks:
       - bmn-network
 
-  # PgAdmin for Database Management
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: bmn-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@bmn.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-    ports:
-      - "${PGADMIN_PORT:-5433}:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./scripts/pgadmin-servers.json:/pgadmin4/servers.json:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - bmn-network
 
   # Ponder Indexer Service
   indexer:
@@ -137,8 +117,6 @@ services:
 volumes:
   postgres_data:
     name: bmn-postgres-data
-  pgadmin_data:
-    name: bmn-pgadmin-data
   ponder_cache:
     name: bmn-ponder-cache
   # redis_data:
