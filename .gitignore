@@ -63,3 +63,4 @@ postgres_backup/
 # Unrelated analysis files
 agent-architecture-analysis.md
 
+temp_log.txt
