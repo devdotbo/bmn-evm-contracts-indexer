@@ -38,8 +38,9 @@ A high-performance indexer for the Bridge Me Not (BMN) atomic swap protocol, tra
 
 2. **Configure environment**
    ```bash
-   cp .env.example .env
-   # Edit .env with your RPC endpoints and configuration
+   cp .env.example .env.local
+   # Edit .env.local with your RPC endpoints and configuration
+   # IMPORTANT: Ponder uses .env.local by default, NOT .env
    ```
 
 3. **Start with Docker Compose**
@@ -65,8 +66,9 @@ A high-performance indexer for the Bridge Me Not (BMN) atomic swap protocol, tra
 
 2. **Set up environment**
    ```bash
-   cp .env.example .env
+   cp .env.example .env.local
    # Configure your RPC endpoints and database credentials
+   # IMPORTANT: Ponder uses .env.local by default, NOT .env
    ```
 
 3. **Start development environment**
@@ -237,10 +239,14 @@ query GetChainStats {
 
 1. Update `ponder.config.ts`:
    ```typescript
-   networks: {
+   chains: {
      newChain: {
-       chainId: YOUR_CHAIN_ID,
-       transport: http(process.env.PONDER_RPC_URL_YOUR_CHAIN),
+       id: YOUR_CHAIN_ID,
+       transport: fallback([
+         webSocket(process.env.PONDER_WS_URL_YOUR_CHAIN),
+         http(process.env.PONDER_RPC_URL_YOUR_CHAIN)
+       ]),
+       maxHistoricalBlockRange: 2000, // Adjust based on RPC limits
      },
    }
    ```
