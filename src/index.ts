@@ -86,31 +86,45 @@ const SRC_IMPLEMENTATION = "0x77CC1A51dC5855bcF0d9f1c1FceaeE7fb855a535";
 const DST_IMPLEMENTATION = "0x36938b7899A17362520AA741C0E0dA0c8EfE5e3b";
 const FACTORY_ADDRESS = "0x75ee15F6BfDd06Aee499ed95e8D92a114659f4d1";
 
+// Feature flag for enhanced events (same as in config)
+const USE_ENHANCED_EVENTS = process.env.USE_ENHANCED_EVENTS === "true";
+
 // Handle SrcEscrowCreated events from Factory
 ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context }) => {
   const chainId = context.chain.id;
-  const { srcImmutables, dstImmutablesComplement } = event.args;
   
-  // Calculate the CREATE2 address for the source escrow
-  // First, hash the immutables struct to get the salt
-  const salt = hashImmutables({
-    orderHash: srcImmutables.orderHash,
-    hashlock: srcImmutables.hashlock,
-    maker: srcImmutables.maker,
-    taker: srcImmutables.taker,
-    token: srcImmutables.token,
-    amount: srcImmutables.amount,
-    safetyDeposit: srcImmutables.safetyDeposit,
-    timelocks: srcImmutables.timelocks
-  }, context);
+  let escrowAddress: string;
+  let srcImmutables: any;
+  let dstImmutablesComplement: any;
   
-  // Calculate the CREATE2 address using the factory address, salt, and implementation
-  const escrowAddress = calculateCreate2Address(
-    SRC_IMPLEMENTATION,
-    salt,
-    FACTORY_ADDRESS,
-    context
-  );
+  if (USE_ENHANCED_EVENTS) {
+    // Enhanced event structure: escrow address is the first parameter
+    ({ escrow: escrowAddress, srcImmutables, dstImmutablesComplement } = event.args);
+  } else {
+    // Legacy event structure: need to calculate CREATE2 address
+    ({ srcImmutables, dstImmutablesComplement } = event.args);
+    
+    // Calculate the CREATE2 address for the source escrow
+    // First, hash the immutables struct to get the salt
+    const salt = hashImmutables({
+      orderHash: srcImmutables.orderHash,
+      hashlock: srcImmutables.hashlock,
+      maker: srcImmutables.maker,
+      taker: srcImmutables.taker,
+      token: srcImmutables.token,
+      amount: srcImmutables.amount,
+      safetyDeposit: srcImmutables.safetyDeposit,
+      timelocks: srcImmutables.timelocks
+    }, context);
+    
+    // Calculate the CREATE2 address using the factory address, salt, and implementation
+    escrowAddress = calculateCreate2Address(
+      SRC_IMPLEMENTATION,
+      salt,
+      FACTORY_ADDRESS,
+      context
+    );
+  }
   
   const id = `${chainId}-${escrowAddress}`;
   
@@ -236,6 +250,9 @@ ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context })
 // Handle DstEscrowCreated events from Factory
 ponder.on("CrossChainEscrowFactory:DstEscrowCreated", async ({ event, context }) => {
   const chainId = context.chain.id;
+  
+  // Both legacy and enhanced events have the same structure for DstEscrowCreated
+  // The only difference is that enhanced version has indexed escrow address
   const { escrow, hashlock, taker } = event.args;
   
   const id = `${chainId}-${escrow}`;

@@ -107,6 +107,9 @@ const createBaseTransport = () => {
   return transports.length > 1 ? fallback(transports) : transports[0];
 };
 
+// Feature flag for enhanced events (default to false until contracts are deployed)
+const USE_ENHANCED_EVENTS = process.env.USE_ENHANCED_EVENTS === "true";
+
 export default createConfig({
   ordering: "multichain",
   database: {
