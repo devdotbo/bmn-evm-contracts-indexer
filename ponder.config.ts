@@ -5,7 +5,8 @@ import { http } from "viem";
 import CrossChainEscrowFactoryAbi from "./abis/CrossChainEscrowFactory.json";
 
 // Constants
-const FACTORY_ADDRESS = "0x2B2d52Cf0080a01f457A4f64F41cbca500f787b1";
+const FACTORY_ADDRESS = "0xB916C3edbFe574fFCBa688A6B92F72106479bD6c";
+const ANKR_API_KEY = process.env.ANKR_API_KEY || "";
 
 export default createConfig({
   ordering: "multichain",
@@ -16,32 +17,28 @@ export default createConfig({
   chains: {
     base: {
       id: 8453,
-      rpc: http(process.env.PONDER_RPC_URL_8453, {
-        timeout: 10_000, // 10 seconds
-      }),
-      ws: process.env.PONDER_WS_URL_8453,
+      rpc: http(`https://rpc.ankr.com/base/${ANKR_API_KEY}`),
+      ws: `wss://rpc.ankr.com/base/ws/${ANKR_API_KEY}`,
     },
-    etherlink: {
-      id: 42793,
-      rpc: http(process.env.PONDER_RPC_URL_42793, {
-        timeout: 10_000, // 10 seconds
-      }),
-      ws: process.env.PONDER_WS_URL_42793,
+    optimism: {
+      id: 10,
+      rpc: http(`https://rpc.ankr.com/optimism/${ANKR_API_KEY}`),
+      ws: `wss://rpc.ankr.com/optimism/ws/${ANKR_API_KEY}`,
     },
   },
   contracts: {
-    // Track factory events on both chains - enhanced events emit addresses directly
+    // Track factory events on both chains
     CrossChainEscrowFactory: {
       abi: CrossChainEscrowFactoryAbi.abi as any,
       address: FACTORY_ADDRESS,
       chain: {
         base: {
           address: FACTORY_ADDRESS,
-          startBlock: 33726385,
+          startBlock: 33809842,
         },
-        etherlink: {
+        optimism: {
           address: FACTORY_ADDRESS,
-          startBlock: 22523319,
+          startBlock: 139404873,
         },
       },
     },
