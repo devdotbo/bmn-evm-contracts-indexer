@@ -81,10 +81,10 @@ EXPOSE 42069
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD node -e "fetch('http://localhost:42069/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+    CMD node -e "fetch('http://localhost:42069/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start the indexer using pnpm
-CMD ["pnpm", "run", "start"]
+CMD ["pnpm", "run", "start", "--log-level", "debug"]

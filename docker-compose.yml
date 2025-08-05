@@ -56,6 +56,11 @@ services:
       PONDER_WS_URL_8453: ${PONDER_WS_URL_8453:-}
       PONDER_WS_URL_42793: ${PONDER_WS_URL_42793:-}
       
+      # Multi-RPC Configuration for Etherlink
+      ANKR_API_KEY: ${ANKR_API_KEY:-}
+      THIRDWEB_API_KEY: ${THIRDWEB_API_KEY:-}
+      ZEEVE_RPC_URL: ${ZEEVE_RPC_URL:-}
+      
       # Start Blocks
       BASE_START_BLOCK: ${BASE_START_BLOCK:-0}
       ETHERLINK_START_BLOCK: ${ETHERLINK_START_BLOCK:-0}
