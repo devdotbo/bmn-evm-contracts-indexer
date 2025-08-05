@@ -62,11 +62,14 @@ COPY --chown=ponder:ponder package.json pnpm-lock.yaml ./
 
 # Copy built application and generated files
 COPY --from=builder --chown=ponder:ponder /app/generated ./generated
-COPY --from=builder --chown=ponder:ponder /app/.ponder ./.ponder
+# .ponder directory is created at runtime, not during build
 
 # Copy source files
 COPY --chown=ponder:ponder ponder.config.ts ponder.schema.ts ./
-COPY --chown=ponder:ponder src ./src
+COPY --chown=ponder:ponder src/index.ts ./src/
+COPY --chown=ponder:ponder src/api ./src/api
+COPY --chown=ponder:ponder src/types ./src/types
+COPY --chown=ponder:ponder src/utils ./src/utils
 COPY --chown=ponder:ponder abis ./abis
 
 # Create directories for runtime

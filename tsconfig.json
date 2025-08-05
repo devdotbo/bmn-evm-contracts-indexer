@@ -22,5 +22,14 @@
     "skipLibCheck": true
   },
   "include": ["./**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "ponder.config.alternative.ts",
+    "ponder.config.enhanced.ts",
+    "ponder.config.final.ts",
+    "ponder.config.fixed.ts",
+    "ponder.config.solution.ts",
+    "src/index.alternative.ts",
+    "src/index.enhanced.ts"
+  ]
 }
