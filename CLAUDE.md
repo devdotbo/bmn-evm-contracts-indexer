@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-BMN EVM Contracts Indexer is a Ponder-based indexer for the Bridge Me Not (BMN) atomic swap protocol, tracking cross-chain escrow operations across Base (8453) and Etherlink (42793) networks.
+BMN EVM Contracts Indexer is a Ponder-based indexer for the Bridge Me Not (BMN) atomic swap protocol, tracking cross-chain escrow operations across Base (8453) and Optimism (10) networks.
 
 ## Essential Commands
 
@@ -82,9 +82,10 @@ make help         # Show all available commands
 ### Core Components
 
 1. **ponder.config.ts**: Multi-chain configuration
-   - Configures Base (8453) and Etherlink (42793) networks
-   - Uses WebSocket with HTTP fallback for real-time updates
-   - Tracks CrossChainEscrowFactory contract at `0x75ee15F6BfDd06Aee499ed95e8D92a114659f4d1`
+   - Configures Base (8453) and Optimism (10) networks
+   - Uses WebSocket and HTTP via Ankr API for real-time updates
+   - Tracks CrossChainEscrowFactory contract at `0xB916C3edbFe574fFCBa688A6B92F72106479bD6c`
+   - Tracks BMN Token (ERC20) at `0x8287CD2aC7E227D9D927F998EB600a0683a832A1`
 
 2. **ponder.schema.ts**: Database schema defining tables:
    - `SrcEscrow`: Source chain escrows
@@ -94,12 +95,16 @@ make help         # Show all available commands
    - `FundsRescued`: Rescued funds events
    - `AtomicSwap`: Cross-chain swap state aggregation
    - `ChainStatistics`: Per-chain protocol analytics
+   - `BmnTransfer`: BMN token transfer events
+   - `BmnApproval`: BMN token approval states
+   - `BmnTokenHolder`: BMN token holder balances
 
 3. **src/index.ts**: Event indexing logic
    - Handles factory events: `SrcEscrowCreated`, `DstEscrowCreated`
    - Handles escrow events: `EscrowWithdrawal`, `EscrowCancelled`, `FundsRescued`
+   - Handles BMN token events: `Transfer`, `Approval`
    - Maintains cross-chain state in AtomicSwap table
-   - Updates real-time statistics
+   - Updates real-time statistics for protocol metrics
 
 ### Docker Architecture
 
@@ -126,18 +131,18 @@ The project provides a comprehensive multi-service Docker setup:
 - **Address Decoding**: Addresses are packed in uint256 and decoded using bitwise operations (src/index.ts:14-18)
 - **Cross-Chain Correlation**: Uses hashlock to link source and destination escrows
 - **Event Flow**: Factory creates escrows → Events update status → Statistics aggregate data
+- **BMN Token Indexing**: Tracks all BMN token transfers, approvals, and holder balances with start blocks:
+  - Base: Block #33,717,297 (BMN token creation)
+  - Optimism: Block #139,404,696 (BMN token creation)
 
 ### Environment Configuration
 
 Required environment variables (copy .env.example to .env):
 
 **Network Configuration:**
-- `PONDER_RPC_URL_8453`: Base network RPC endpoint
-- `PONDER_RPC_URL_42793`: Etherlink network RPC endpoint
-- `PONDER_WS_URL_8453`: Base WebSocket endpoint (optional)
-- `PONDER_WS_URL_42793`: Etherlink WebSocket endpoint (optional)
-- `BASE_START_BLOCK`: Base network start block
-- `ETHERLINK_START_BLOCK`: Etherlink network start block
+- `ANKR_API_KEY`: Ankr API key for accessing Base and Optimism networks
+- `BASE_START_BLOCK`: Base network start block (33809842)
+- `OPTIMISM_START_BLOCK`: Optimism network start block (139404873)
 
 **PostgreSQL Configuration:**
 - `POSTGRES_USER`: Database user (default: ponder)

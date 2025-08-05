@@ -11,7 +11,6 @@
     "codegen": "ponder codegen",
     "serve": "ponder serve",
     "lint": "eslint .",
-    "typecheck": "tsc",
     "clean": "rm -rf .ponder generated/",
     "format": "prettier --write \"src/**/*.ts\"",
     "test:rpc": "tsx scripts/test-rpc-endpoints.ts",

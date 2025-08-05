@@ -109,3 +109,37 @@ export const chainStatistics = onchainTable("chain_statistics", (t) => ({
   totalVolumeWithdrawn: t.bigint().notNull(),
   lastUpdatedBlock: t.bigint().notNull(),
 }));
+
+// BMN Token Tables
+export const bmnTransfer = onchainTable("bmn_transfer", (t) => ({
+  id: t.text().primaryKey(), // chainId-transactionHash-logIndex
+  chainId: t.integer().notNull(),
+  from: t.text().notNull(),
+  to: t.text().notNull(),
+  value: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+  logIndex: t.integer().notNull(),
+}));
+
+export const bmnApproval = onchainTable("bmn_approval", (t) => ({
+  id: t.text().primaryKey(), // chainId-owner-spender
+  chainId: t.integer().notNull(),
+  owner: t.text().notNull(),
+  spender: t.text().notNull(),
+  value: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+export const bmnTokenHolder = onchainTable("bmn_token_holder", (t) => ({
+  id: t.text().primaryKey(), // chainId-address
+  chainId: t.integer().notNull(),
+  address: t.text().notNull(),
+  balance: t.bigint().notNull(),
+  firstTransferBlock: t.bigint().notNull(),
+  lastTransferBlock: t.bigint().notNull(),
+  transferCount: t.bigint().notNull(),
+}));
