@@ -1,0 +1,121 @@
+{
+  "SrcEscrowCreated": {
+    "type": "event",
+    "name": "SrcEscrowCreated",
+    "inputs": [
+      {
+        "name": "escrow",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "srcImmutables",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IBaseEscrow.Immutables",
+        "components": [
+          {
+            "name": "orderHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "hashlock",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "maker",
+            "type": "uint256",
+            "internalType": "Address"
+          },
+          {
+            "name": "taker",
+            "type": "uint256",
+            "internalType": "Address"
+          },
+          {
+            "name": "token",
+            "type": "uint256",
+            "internalType": "Address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "safetyDeposit",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "timelocks",
+            "type": "uint256",
+            "internalType": "Timelocks"
+          }
+        ]
+      },
+      {
+        "name": "dstImmutablesComplement",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IEscrowFactory.DstImmutablesComplement",
+        "components": [
+          {
+            "name": "maker",
+            "type": "uint256",
+            "internalType": "Address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "token",
+            "type": "uint256",
+            "internalType": "Address"
+          },
+          {
+            "name": "safetyDeposit",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "chainId",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "anonymous": false
+  },
+  "DstEscrowCreated": {
+    "type": "event",
+    "name": "DstEscrowCreated",
+    "inputs": [
+      {
+        "name": "escrow",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "hashlock",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "taker",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "Address"
+      }
+    ],
+    "anonymous": false
+  }
+}

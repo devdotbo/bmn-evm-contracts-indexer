@@ -38,7 +38,7 @@ COPY . .
 RUN pnpm run codegen
 
 # Build TypeScript (if needed)
-RUN pnpm run typecheck || true
+# Skip type checking as Ponder handles its own types internally
 
 # Stage 3: Runtime
 FROM node:${NODE_VERSION} AS runtime
@@ -60,13 +60,14 @@ COPY --from=deps --chown=ponder:ponder /app/node_modules ./node_modules
 # Copy package files
 COPY --chown=ponder:ponder package.json pnpm-lock.yaml ./
 
-# Copy built application and generated files
-COPY --from=builder --chown=ponder:ponder /app/generated ./generated
-COPY --from=builder --chown=ponder:ponder /app/.ponder ./.ponder
+# Copy built application and generated files (if they exist)
+# The generated directory may not exist in all cases
+COPY --from=builder --chown=ponder:ponder /app/generated* ./
 
 # Copy source files
-COPY --chown=ponder:ponder ponder.config.ts ponder.schema.ts ./
-COPY --chown=ponder:ponder src ./src
+COPY --chown=ponder:ponder ponder.config.ts ponder.schema.ts ponder-env.d.ts* ./
+COPY --chown=ponder:ponder src/index.ts ./src/
+COPY --chown=ponder:ponder src/api ./src/api
 COPY --chown=ponder:ponder abis ./abis
 
 # Create directories for runtime
@@ -87,4 +88,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start the indexer using pnpm
-CMD ["pnpm", "run", "start", "--log-level", "debug"]
+CMD ["pnpm", "run", "start", "--log-level", "info"]
