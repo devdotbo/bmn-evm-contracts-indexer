@@ -1,5 +1,4 @@
 import { createConfig } from "ponder";
-import { http, webSocket, fallback } from "viem";
 
 // Import ABIs
 import CrossChainEscrowFactoryAbi from "./abis/CrossChainEscrowFactory.json";
@@ -11,42 +10,27 @@ export default createConfig({
     kind: "postgres",
     connectionString: process.env.DATABASE_URL,
   },
-  // No global sync config - will be set per-chain
   chains: {
     base: {
       id: 8453,
-      transport: fallback([
-        webSocket(process.env.PONDER_WS_URL_8453),
-        http(process.env.PONDER_RPC_URL_8453, {
-          batch: {
-            multicall: {
-              batchSize: 128,
-              wait: 16,
-            },
-          },
-          retryCount: 3,
-          retryDelay: 500,
-        })
-      ]),
+      ws: process.env.PONDER_WS_URL_8453,
+      rpc: process.env.PONDER_RPC_URL_8453,
+      multicall: {
+        batchSize: 128,
+        wait: 16,
+      },
       // Base has good RPC limits
       maxHistoricalBlockRange: 5000,
       syncBatchSize: 2000,
     },
     etherlink: {
       id: 42793,
-      transport: fallback([
-        webSocket(process.env.PONDER_WS_URL_42793),
-        http(process.env.PONDER_RPC_URL_42793, {
-          batch: {
-            multicall: {
-              batchSize: 128,
-              wait: 16,
-            },
-          },
-          retryCount: 3,
-          retryDelay: 500,
-        })
-      ]),
+      ws: process.env.PONDER_WS_URL_42793,
+      rpc: process.env.PONDER_RPC_URL_42793,
+      multicall: {
+        batchSize: 128,
+        wait: 16,
+      },
       // Now using private RPC with higher limits
       maxHistoricalBlockRange: 2000,
       syncBatchSize: 1000,
