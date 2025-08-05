@@ -15,7 +15,6 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db/01-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ponder} -d ${POSTGRES_DB:-bmn_indexer}"]
       interval: 10s
@@ -50,19 +49,11 @@ services:
       DATABASE_SCHEMA: ${DATABASE_SCHEMA:-public}
       
       # RPC Endpoints
-      PONDER_RPC_URL_1: ${PONDER_RPC_URL_1}
-      PONDER_RPC_URL_10: ${PONDER_RPC_URL_10}
-      PONDER_RPC_URL_137: ${PONDER_RPC_URL_137}
       PONDER_RPC_URL_8453: ${PONDER_RPC_URL_8453}
-      PONDER_RPC_URL_42161: ${PONDER_RPC_URL_42161}
       PONDER_RPC_URL_42793: ${PONDER_RPC_URL_42793}
       
       # WebSocket Endpoints (optional)
-      PONDER_WS_URL_1: ${PONDER_WS_URL_1:-}
-      PONDER_WS_URL_10: ${PONDER_WS_URL_10:-}
-      PONDER_WS_URL_137: ${PONDER_WS_URL_137:-}
       PONDER_WS_URL_8453: ${PONDER_WS_URL_8453:-}
-      PONDER_WS_URL_42161: ${PONDER_WS_URL_42161:-}
       PONDER_WS_URL_42793: ${PONDER_WS_URL_42793:-}
       
       # Start Blocks
