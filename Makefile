@@ -155,6 +155,16 @@ test: ## Run tests (if available)
 	@echo "Running tests..."
 	@pnpm run test || echo "No test script defined"
 
+.PHONY: test-rpc
+test-rpc: ## Test all configured RPC endpoints
+	@echo "Testing RPC endpoints..."
+	@pnpm run test:rpc
+
+.PHONY: monitor-rpc
+monitor-rpc: ## Monitor RPC endpoints continuously
+	@echo "Starting RPC endpoint monitor..."
+	@pnpm run monitor:rpc
+
 .PHONY: deps-update
 deps-update: ## Update dependencies
 	@echo "Updating dependencies..."
