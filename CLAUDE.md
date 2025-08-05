@@ -166,8 +166,18 @@ Required environment variables (copy .env.example to .env):
 ### API Endpoints
 
 - GraphQL: `http://localhost:42069/graphql`
+- SQL over HTTP: `http://localhost:42069/sql/*` (requires @ponder/client)
 - Health Check: `http://localhost:42069/health`
 - Ready Check: `http://localhost:42069/ready`
+
+### SQL over HTTP (WORKING)
+
+The indexer provides full SQL over HTTP support via the @ponder/client package:
+- **Status**: ✅ Fully configured and operational
+- **Endpoint**: `http://localhost:42069/sql/*`
+- **Documentation**: See `docs/SQL_OVER_HTTP.md` for complete usage guide
+- **Test Script**: Run `deno run --node-modules-dir=auto --allow-net --allow-env --allow-read scripts/test-sql-deno.ts`
+- **Features**: Type-safe queries, live subscriptions (SSE), Drizzle ORM integration
 
 ## Development Workflow
 
