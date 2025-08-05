@@ -25,106 +25,17 @@ async function findAtomicSwapByHashlock(context: any, hashlock: string) {
   return swaps.length > 0 ? swaps[0] : null;
 }
 
-// Helper function to calculate CREATE2 address for deterministic proxy deployment
-// Based on OpenZeppelin's Clones.predictDeterministicAddress
-function calculateCreate2Address(
-  implementation: string,
-  salt: string,
-  deployer: string,
-  context: any
-): string {
-  // EIP-1167 minimal proxy bytecode with placeholder for implementation
-  // 0x3d602d80600a3d3981f3363d3d373d3d3d363d73 + implementation + 5af43d82803e903d91602b57fd5bf3
-  const proxyInitCode = 
-    "0x3d602d80600a3d3981f3363d3d373d3d3d363d73" + 
-    implementation.toLowerCase().slice(2) + 
-    "5af43d82803e903d91602b57fd5bf3";
-  
-  // Calculate keccak256 of the proxy bytecode
-  const proxyInitCodeHash = context.keccak256(proxyInitCode);
-  
-  // CREATE2 address formula: keccak256(0xff ++ deployer ++ salt ++ keccak256(init_code))[12:]
-  const create2Input = "0xff" + 
-    deployer.toLowerCase().slice(2) + 
-    salt.slice(2) + 
-    proxyInitCodeHash.slice(2);
-  
-  const create2Hash = context.keccak256(create2Input);
-  // Take the last 20 bytes (40 hex chars) as the address
-  return "0x" + create2Hash.slice(-40);
-}
-
-// Helper function to hash immutables struct for salt calculation
-// Matches ImmutablesLib.hash() which uses keccak256 of 256 bytes (0x100)
-function hashImmutables(immutables: {
-  orderHash: string;
-  hashlock: string;
-  maker: bigint;
-  taker: bigint;
-  token: bigint;
-  amount: bigint;
-  safetyDeposit: bigint;
-  timelocks: bigint;
-}, context: any): string {
-  // Pack the struct data as it would be in memory (256 bytes total)
-  // Each field is 32 bytes
-  const packed = 
-    immutables.orderHash.slice(2).padStart(64, '0') +
-    immutables.hashlock.slice(2).padStart(64, '0') +
-    immutables.maker.toString(16).padStart(64, '0') +
-    immutables.taker.toString(16).padStart(64, '0') +
-    immutables.token.toString(16).padStart(64, '0') +
-    immutables.amount.toString(16).padStart(64, '0') +
-    immutables.safetyDeposit.toString(16).padStart(64, '0') +
-    immutables.timelocks.toString(16).padStart(64, '0');
-  
-  return context.keccak256("0x" + packed);
-}
-
 // Constants for escrow implementations (same across all chains)
 const SRC_IMPLEMENTATION = "0x77CC1A51dC5855bcF0d9f1c1FceaeE7fb855a535";
 const DST_IMPLEMENTATION = "0x36938b7899A17362520AA741C0E0dA0c8EfE5e3b";
-const FACTORY_ADDRESS = "0x75ee15F6BfDd06Aee499ed95e8D92a114659f4d1";
-
-// Feature flag for enhanced events (same as in config)
-const USE_ENHANCED_EVENTS = process.env.USE_ENHANCED_EVENTS === "true";
+const FACTORY_ADDRESS = "0x2B2d52Cf0080a01f457A4f64F41cbca500f787b1";
 
 // Handle SrcEscrowCreated events from Factory
 ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context }) => {
   const chainId = context.chain.id;
   
-  let escrowAddress: string;
-  let srcImmutables: any;
-  let dstImmutablesComplement: any;
-  
-  if (USE_ENHANCED_EVENTS) {
-    // Enhanced event structure: escrow address is the first parameter
-    ({ escrow: escrowAddress, srcImmutables, dstImmutablesComplement } = event.args);
-  } else {
-    // Legacy event structure: need to calculate CREATE2 address
-    ({ srcImmutables, dstImmutablesComplement } = event.args);
-    
-    // Calculate the CREATE2 address for the source escrow
-    // First, hash the immutables struct to get the salt
-    const salt = hashImmutables({
-      orderHash: srcImmutables.orderHash,
-      hashlock: srcImmutables.hashlock,
-      maker: srcImmutables.maker,
-      taker: srcImmutables.taker,
-      token: srcImmutables.token,
-      amount: srcImmutables.amount,
-      safetyDeposit: srcImmutables.safetyDeposit,
-      timelocks: srcImmutables.timelocks
-    }, context);
-    
-    // Calculate the CREATE2 address using the factory address, salt, and implementation
-    escrowAddress = calculateCreate2Address(
-      SRC_IMPLEMENTATION,
-      salt,
-      FACTORY_ADDRESS,
-      context
-    );
-  }
+  // Enhanced events emit the escrow address directly
+  const { escrow: escrowAddress, srcImmutables, dstImmutablesComplement } = event.args;
   
   const id = `${chainId}-${escrowAddress}`;
   
@@ -153,14 +64,13 @@ ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context })
   });
   
   // Check if a temporary AtomicSwap exists with this hashlock
-  const tempSwaps = await context.db
-    .select(atomicSwap, { 
-      where: (row) => row.hashlock === srcImmutables.hashlock && row.id.startsWith("temp-")
-    });
+  const tempSwap = await context.db.find(atomicSwap, { 
+    id: `temp-${srcImmutables.hashlock}`
+  });
   
-  if (tempSwaps.length > 0) {
+  if (tempSwap) {
     // Delete temporary record and create proper one
-    await context.db.delete(atomicSwap, { id: tempSwaps[0].id });
+    await context.db.delete(atomicSwap, { id: tempSwap.id });
     
     // Create proper AtomicSwap record with all data
     await context.db
@@ -170,13 +80,13 @@ ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context })
         orderHash: srcImmutables.orderHash,
         hashlock: srcImmutables.hashlock,
         srcChainId: chainId,
-        dstChainId: tempSwaps[0].dstChainId || Number(dstImmutablesComplement.chainId),
+        dstChainId: tempSwap.dstChainId || Number(dstImmutablesComplement.chainId),
         srcEscrowAddress: escrowAddress,
-        dstEscrowAddress: tempSwaps[0].dstEscrowAddress,
+        dstEscrowAddress: tempSwap.dstEscrowAddress,
         srcMaker: decodeAddress(srcImmutables.maker),
         srcTaker: decodeAddress(srcImmutables.taker),
         dstMaker: decodeAddress(dstImmutablesComplement.maker),
-        dstTaker: tempSwaps[0].dstTaker || decodeAddress(srcImmutables.taker),
+        dstTaker: tempSwap.dstTaker || decodeAddress(srcImmutables.taker),
         srcToken: decodeAddress(srcImmutables.token),
         srcAmount: srcImmutables.amount,
         dstToken: decodeAddress(dstImmutablesComplement.token),
@@ -184,9 +94,9 @@ ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context })
         srcSafetyDeposit: srcImmutables.safetyDeposit,
         dstSafetyDeposit: dstImmutablesComplement.safetyDeposit,
         timelocks: srcImmutables.timelocks,
-        status: tempSwaps[0].dstEscrowAddress ? "both_created" : "src_created",
+        status: tempSwap.dstEscrowAddress ? "both_created" : "src_created",
         srcCreatedAt: event.block.timestamp,
-        dstCreatedAt: tempSwaps[0].dstCreatedAt,
+        dstCreatedAt: tempSwap.dstCreatedAt,
       });
   } else {
     // Create or update AtomicSwap record normally
@@ -272,14 +182,10 @@ ponder.on("CrossChainEscrowFactory:DstEscrowCreated", async ({ event, context })
   });
   
   // First check if an AtomicSwap exists with this hashlock
-  const existingSwaps = await context.db
-    .select(atomicSwap, { 
-      where: (row) => row.hashlock === hashlock 
-    });
+  const existingSwap = await findAtomicSwapByHashlock(context, hashlock);
   
-  if (existingSwaps.length > 0) {
+  if (existingSwap) {
     // Update existing AtomicSwap record
-    const existingSwap = existingSwaps[0];
     await context.db
       .update(atomicSwap, { id: existingSwap.id })
       .set({
@@ -297,18 +203,18 @@ ponder.on("CrossChainEscrowFactory:DstEscrowCreated", async ({ event, context })
       .insert(atomicSwap)
       .values({
         id: `temp-${hashlock}`, // Temporary ID to avoid conflicts
-        orderHash: "", // Will be filled when SrcEscrowCreated is processed
+        orderHash: `0x${'0'.repeat(64)}`, // Will be filled when SrcEscrowCreated is processed
         hashlock,
         srcChainId: 0, // Will be updated when we have the full info
         dstChainId: chainId,
         dstEscrowAddress: escrow,
-        srcMaker: "", // Will be filled later
-        srcTaker: "",
-        dstMaker: "",
+        srcMaker: `0x${'0'.repeat(40)}`, // Will be filled later
+        srcTaker: `0x${'0'.repeat(40)}`,
+        dstMaker: `0x${'0'.repeat(40)}`,
         dstTaker: decodeAddress(taker),
-        srcToken: "",
+        srcToken: `0x${'0'.repeat(40)}`,
         srcAmount: 0n,
-        dstToken: "",
+        dstToken: `0x${'0'.repeat(40)}`,
         dstAmount: 0n,
         srcSafetyDeposit: 0n,
         dstSafetyDeposit: 0n,
@@ -339,6 +245,9 @@ ponder.on("CrossChainEscrowFactory:DstEscrowCreated", async ({ event, context })
 });
 
 // Handle EscrowWithdrawal events
+// Note: These events are not tracked directly anymore since we removed the BaseEscrow contract
+// TODO: Implement dynamic escrow tracking using addresses from factory events
+/*
 ponder.on("BaseEscrow:EscrowWithdrawal", async ({ event, context }) => {
   const chainId = context.chain.id;
   const escrowAddress = event.log.address;
@@ -375,7 +284,7 @@ ponder.on("BaseEscrow:EscrowWithdrawal", async ({ event, context }) => {
     
     if (atomicSwapRecord) {
       await context.db
-        .update(atomicSwap, { orderHash: srcEscrowRecord.orderHash })
+        .update(atomicSwap, { id: srcEscrowRecord.orderHash })
         .set({
           status: "completed",
           completedAt: event.block.timestamp,
@@ -437,8 +346,10 @@ ponder.on("BaseEscrow:EscrowWithdrawal", async ({ event, context }) => {
     }
   }
 });
+*/
 
-// Handle EscrowCancelled events
+// Handle EscrowCancelled events - commented out since BaseEscrow contract removed
+/*
 ponder.on("BaseEscrow:EscrowCancelled", async ({ event, context }) => {
   const chainId = context.chain.id;
   const escrowAddress = event.log.address;
@@ -473,7 +384,7 @@ ponder.on("BaseEscrow:EscrowCancelled", async ({ event, context }) => {
     
     if (atomicSwapRecord) {
       await context.db
-        .update(atomicSwap, { orderHash: srcEscrowRecord.orderHash })
+        .update(atomicSwap, { id: srcEscrowRecord.orderHash })
         .set({
           status: "cancelled",
           cancelledAt: event.block.timestamp,
@@ -514,8 +425,10 @@ ponder.on("BaseEscrow:EscrowCancelled", async ({ event, context }) => {
       lastUpdatedBlock: event.block.number,
     }));
 });
+*/
 
-// Handle FundsRescued events
+// Handle FundsRescued events - commented out since BaseEscrow contract removed
+/*
 ponder.on("BaseEscrow:FundsRescued", async ({ event, context }) => {
   const chainId = context.chain.id;
   const escrowAddress = event.log.address;
@@ -554,3 +467,4 @@ ponder.on("BaseEscrow:FundsRescued", async ({ event, context }) => {
       lastUpdatedBlock: event.block.number,
     }));
 });
+*/
