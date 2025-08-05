@@ -43,8 +43,9 @@ RUN pnpm run typecheck || true
 # Stage 3: Runtime
 FROM node:${NODE_VERSION} AS runtime
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init for proper signal handling and pnpm
+RUN apk add --no-cache dumb-init && \
+    corepack enable && corepack prepare pnpm@latest --activate
 
 # Create non-root user
 RUN addgroup -g 1001 -S ponder && \
@@ -85,5 +86,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the indexer
-CMD ["node", "--max-old-space-size=4096", "node_modules/.bin/ponder", "start"]
+# Start the indexer using pnpm
+CMD ["pnpm", "run", "start"]
