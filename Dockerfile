@@ -68,7 +68,6 @@ COPY --from=builder --chown=ponder:ponder /app/generated* ./
 COPY --chown=ponder:ponder ponder.config.ts ponder.schema.ts ponder-env.d.ts* ./
 COPY --chown=ponder:ponder src/index.ts ./src/
 COPY --chown=ponder:ponder src/api ./src/api
-COPY --chown=ponder:ponder src/utils ./src/utils
 COPY --chown=ponder:ponder abis ./abis
 
 # Create directories for runtime
@@ -89,4 +88,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start the indexer using pnpm
-CMD ["pnpm", "run", "start", "--log-level", "debug"]
+CMD ["pnpm", "run", "start", "--log-level", "info"]
