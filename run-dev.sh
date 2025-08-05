@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to run Ponder indexer with debug logging
+# Script to run Ponder indexer
 
 # Load environment variables from .env.local file
 if [ -f .env.local ]; then
@@ -13,14 +13,14 @@ else
     echo "Warning: No .env.local or .env file found!"
 fi
 
-# Set log level to debug
-export PONDER_LOG_LEVEL=debug
+# Set log level to info (can be overridden by environment)
+export PONDER_LOG_LEVEL=${PONDER_LOG_LEVEL:-info}
 
 # Print current configuration
 echo "Starting Ponder indexer with:"
 echo "  - Log Level: $PONDER_LOG_LEVEL"
-echo "  - Base WebSocket: ${PONDER_WS_URL_8453:-not set}"
-echo "  - Etherlink WebSocket: ${PONDER_WS_URL_42793:-not set}"
+echo "  - Base RPC: Using Ankr API"
+echo "  - Optimism RPC: Using Ankr API"
 echo ""
 
 # Run the indexer
