@@ -85,6 +85,7 @@ make help         # Show all available commands
    - Configures Base (8453) and Optimism (10) networks
    - Uses WebSocket and HTTP via Ankr API for real-time updates
    - Tracks CrossChainEscrowFactory contract at `0xB916C3edbFe574fFCBa688A6B92F72106479bD6c`
+   - Tracks BMN Token (ERC20) at `0x8287CD2aC7E227D9D927F998EB600a0683a832A1`
 
 2. **ponder.schema.ts**: Database schema defining tables:
    - `SrcEscrow`: Source chain escrows
@@ -94,12 +95,16 @@ make help         # Show all available commands
    - `FundsRescued`: Rescued funds events
    - `AtomicSwap`: Cross-chain swap state aggregation
    - `ChainStatistics`: Per-chain protocol analytics
+   - `BmnTransfer`: BMN token transfer events
+   - `BmnApproval`: BMN token approval states
+   - `BmnTokenHolder`: BMN token holder balances
 
 3. **src/index.ts**: Event indexing logic
    - Handles factory events: `SrcEscrowCreated`, `DstEscrowCreated`
    - Handles escrow events: `EscrowWithdrawal`, `EscrowCancelled`, `FundsRescued`
+   - Handles BMN token events: `Transfer`, `Approval`
    - Maintains cross-chain state in AtomicSwap table
-   - Updates real-time statistics
+   - Updates real-time statistics for protocol metrics
 
 ### Docker Architecture
 
@@ -126,6 +131,9 @@ The project provides a comprehensive multi-service Docker setup:
 - **Address Decoding**: Addresses are packed in uint256 and decoded using bitwise operations (src/index.ts:14-18)
 - **Cross-Chain Correlation**: Uses hashlock to link source and destination escrows
 - **Event Flow**: Factory creates escrows → Events update status → Statistics aggregate data
+- **BMN Token Indexing**: Tracks all BMN token transfers, approvals, and holder balances with start blocks:
+  - Base: Block #33,717,297 (BMN token creation)
+  - Optimism: Block #139,404,696 (BMN token creation)
 
 ### Environment Configuration
 
