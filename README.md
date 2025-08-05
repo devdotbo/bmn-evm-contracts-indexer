@@ -5,12 +5,12 @@
 [![Framework](https://img.shields.io/badge/framework-Ponder%20v0.12.0-blue)](https://ponder.sh)
 [![Docker](https://img.shields.io/badge/docker-ready-blue)](https://www.docker.com)
 
-A high-performance indexer for the Bridge Me Not (BMN) atomic swap protocol, tracking cross-chain escrow operations across Base and Etherlink networks using the Ponder framework.
+A high-performance indexer for the Bridge Me Not (BMN) atomic swap protocol, tracking cross-chain escrow operations across Base and Optimism networks using the Ponder framework.
 
 ## 🚀 Features
 
 - **Real-time Indexing**: WebSocket connections with HTTP fallback for instant event processing
-- **Multi-chain Support**: Simultaneous indexing of Base (8453) and Etherlink (42793) networks
+- **Multi-chain Support**: Simultaneous indexing of Base (8453) and Optimism (10) networks
 - **GraphQL API**: Query indexed data through a powerful GraphQL interface
 - **Event Tracking**: Comprehensive tracking of escrow creation, withdrawals, cancellations, and fund rescues
 - **Cross-chain Correlation**: Automatic linking of source and destination escrows via hashlock
@@ -24,7 +24,7 @@ A high-performance indexer for the Bridge Me Not (BMN) atomic swap protocol, tra
 - **pnpm**: >= 8.0 (recommended) or npm
 - **Docker & Docker Compose**: For containerized deployment
 - **PostgreSQL**: 14+ (if running locally without Docker)
-- **RPC Endpoints**: Access to Base and Etherlink RPC nodes
+- **RPC Endpoints**: Ankr API key for Base and Optimism access
 
 ## 🏃 Quick Start
 
