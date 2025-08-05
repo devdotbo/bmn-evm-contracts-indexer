@@ -20,7 +20,7 @@ function decodeAddress(packedAddress: bigint): string {
 async function findAtomicSwapByHashlock(context: any, hashlock: string) {
   const swaps = await context.db
     .select(atomicSwap, { 
-      where: (row) => row.hashlock === hashlock 
+      where: (row: any) => row.hashlock === hashlock 
     });
   return swaps.length > 0 ? swaps[0] : null;
 }
@@ -28,7 +28,7 @@ async function findAtomicSwapByHashlock(context: any, hashlock: string) {
 // Constants for escrow implementations (same across all chains)
 const SRC_IMPLEMENTATION = "0x77CC1A51dC5855bcF0d9f1c1FceaeE7fb855a535";
 const DST_IMPLEMENTATION = "0x36938b7899A17362520AA741C0E0dA0c8EfE5e3b";
-const FACTORY_ADDRESS = "0x2B2d52Cf0080a01f457A4f64F41cbca500f787b1";
+const FACTORY_ADDRESS = "0xB916C3edbFe574fFCBa688A6B92F72106479bD6c";
 
 // Handle SrcEscrowCreated events from Factory
 ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context }) => {
