@@ -3,9 +3,11 @@ import { http } from "viem";
 
 // Import ABIs
 import CrossChainEscrowFactoryAbi from "./abis/CrossChainEscrowFactory.json";
+import BmnTokenAbi from "./abis/BmnToken.json";
 
 // Constants
 const FACTORY_ADDRESS = "0xB916C3edbFe574fFCBa688A6B92F72106479bD6c";
+const BMN_TOKEN_ADDRESS = "0x8287CD2aC7E227D9D927F998EB600a0683a832A1";
 const ANKR_API_KEY = process.env.ANKR_API_KEY || "";
 
 export default createConfig({
@@ -39,6 +41,21 @@ export default createConfig({
         optimism: {
           address: FACTORY_ADDRESS,
           startBlock: 139404873,
+        },
+      },
+    },
+    // Track BMN token events on both chains
+    BmnToken: {
+      abi: BmnTokenAbi.abi as any,
+      address: BMN_TOKEN_ADDRESS,
+      chain: {
+        base: {
+          address: BMN_TOKEN_ADDRESS,
+          startBlock: 33717297, // BMN Token creation block on Base
+        },
+        optimism: {
+          address: BMN_TOKEN_ADDRESS,
+          startBlock: 139404696, // BMN Token creation block on Optimism
         },
       },
     },

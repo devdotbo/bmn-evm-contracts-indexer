@@ -6,7 +6,10 @@ import {
   escrowCancellation, 
   fundsRescued, 
   atomicSwap,
-  chainStatistics 
+  chainStatistics,
+  bmnTransfer,
+  bmnApproval,
+  bmnTokenHolder
 } from "ponder:schema";
 
 // Helper function to decode packed address from uint256
@@ -468,3 +471,95 @@ ponder.on("BaseEscrow:FundsRescued", async ({ event, context }) => {
     }));
 });
 */
+
+// BMN Token Event Handlers
+
+ponder.on("BmnToken:Transfer", async ({ event, context }) => {
+  const chainId = context.chain.id;
+  const from = event.args.from.toLowerCase();
+  const to = event.args.to.toLowerCase();
+  const value = event.args.value;
+  
+  // Record the transfer
+  await context.db.insert(bmnTransfer).values({
+    id: `${chainId}-${event.transaction.hash}-${event.log.logIndex}`,
+    chainId: chainId,
+    from: from,
+    to: to,
+    value: value,
+    blockNumber: event.block.number,
+    blockTimestamp: event.block.timestamp,
+    transactionHash: event.transaction.hash,
+    logIndex: event.log.logIndex,
+  });
+  
+  // Update sender balance (if not zero address)
+  if (from !== "0x0000000000000000000000000000000000000000") {
+    const senderId = `${chainId}-${from}`;
+    const senderRecord = await context.db.find(bmnTokenHolder, { id: senderId });
+    
+    if (senderRecord) {
+      await context.db
+        .update(bmnTokenHolder, { id: senderId })
+        .set({
+          balance: senderRecord.balance - value,
+          lastTransferBlock: event.block.number,
+          transferCount: senderRecord.transferCount + 1n,
+        });
+    }
+  }
+  
+  // Update receiver balance (if not zero address)
+  if (to !== "0x0000000000000000000000000000000000000000") {
+    const receiverId = `${chainId}-${to}`;
+    const receiverRecord = await context.db.find(bmnTokenHolder, { id: receiverId });
+    
+    if (receiverRecord) {
+      await context.db
+        .update(bmnTokenHolder, { id: receiverId })
+        .set({
+          balance: receiverRecord.balance + value,
+          lastTransferBlock: event.block.number,
+          transferCount: receiverRecord.transferCount + 1n,
+        });
+    } else {
+      // First transfer for this address
+      await context.db.insert(bmnTokenHolder).values({
+        id: receiverId,
+        chainId: chainId,
+        address: to,
+        balance: value,
+        firstTransferBlock: event.block.number,
+        lastTransferBlock: event.block.number,
+        transferCount: 1n,
+      });
+    }
+  }
+});
+
+ponder.on("BmnToken:Approval", async ({ event, context }) => {
+  const chainId = context.chain.id;
+  const owner = event.args.owner.toLowerCase();
+  const spender = event.args.spender.toLowerCase();
+  const value = event.args.value;
+  
+  // Update approval record
+  await context.db
+    .insert(bmnApproval)
+    .values({
+      id: `${chainId}-${owner}-${spender}`,
+      chainId: chainId,
+      owner: owner,
+      spender: spender,
+      value: value,
+      blockNumber: event.block.number,
+      blockTimestamp: event.block.timestamp,
+      transactionHash: event.transaction.hash,
+    })
+    .onConflictDoUpdate({
+      value: value,
+      blockNumber: event.block.number,
+      blockTimestamp: event.block.timestamp,
+      transactionHash: event.transaction.hash,
+    });
+});

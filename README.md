@@ -13,6 +13,7 @@ A high-performance indexer for the Bridge Me Not (BMN) atomic swap protocol, tra
 - **Multi-chain Support**: Simultaneous indexing of Base (8453) and Optimism (10) networks
 - **GraphQL API**: Query indexed data through a powerful GraphQL interface
 - **Event Tracking**: Comprehensive tracking of escrow creation, withdrawals, cancellations, and fund rescues
+- **BMN Token Indexing**: Full ERC20 token tracking including transfers, approvals, and holder balances
 - **Cross-chain Correlation**: Automatic linking of source and destination escrows via hashlock
 - **Analytics**: Built-in chain statistics and protocol metrics
 - **Docker Ready**: Complete containerization with Docker Compose
