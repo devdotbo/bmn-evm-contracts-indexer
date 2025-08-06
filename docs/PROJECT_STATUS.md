@@ -1,7 +1,6 @@
 # Project Status Report: BMN EVM Contracts Indexer
 
-**Last Updated**: January 3, 2025  
-**Project Version**: 1.0.0-alpha  
+**Project Version**: 1.1.0-alpha  
 **Framework**: Ponder v0.12.0  
 
 ## 1. Project Status Overview
@@ -14,6 +13,7 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
 - ✅ **Database Layer**: PostgreSQL with full schema implementation
 - ✅ **API Layer**: GraphQL endpoint serving indexed data
 - ✅ **Infrastructure**: Docker-based deployment ready
+- ✅ **Limit Order Protocol**: SimpleLimitOrderProtocol indexing integrated
 - ⚠️ **CREATE2 Calculation**: Placeholder implementation requires update
 - ⚠️ **Start Blocks**: Configuration needed for optimal performance
 
@@ -36,10 +36,16 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
 - EscrowWithdrawal: Successful atomic swap completion
 - EscrowCancelled: Cancelled/expired escrows
 - FundsRescued: Emergency fund recovery
+
+// SimpleLimitOrderProtocol Events
+- OrderFilled: Limit order execution tracking
+- OrderCancelled: Order cancellation tracking
+- BitInvalidatorUpdated: Order bit invalidation state
+- EpochIncreased: Epoch management for order series
 ```
 
 ### Database Implementation
-- **Schema Tables**: 10 tables with optimized indexes
+- **Schema Tables**: 16 tables with optimized indexes
   - `SrcEscrow`: Source chain escrow records
   - `DstEscrow`: Destination chain escrow records
   - `EscrowWithdrawal`: Successful withdrawal transactions
@@ -50,6 +56,12 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
   - `BmnTransfer`: BMN token transfer events
   - `BmnApproval`: BMN token approval states
   - `BmnTokenHolder`: BMN token holder balances
+  - `LimitOrder`: Limit order state tracking
+  - `OrderFilled`: Order fill event records
+  - `OrderCancelled`: Order cancellation records
+  - `BitInvalidatorUpdated`: Bit invalidation tracking
+  - `EpochIncreased`: Epoch management records
+  - `LimitOrderStatistics`: Protocol analytics
 
 ### API Features
 - **GraphQL Endpoint**: `http://localhost:42069/graphql`
@@ -134,7 +146,27 @@ Volumes:
 - **PostgreSQL**: 1GB memory, 10GB storage initial
 - **PgAdmin**: 512MB memory sufficient
 
-## 5. Current Limitations
+## 5. SimpleLimitOrderProtocol Integration (NEW)
+
+### Added Contract Support
+- **Base Network**: `0x1c1A74b677A28ff92f4AbF874b3Aa6dE864D3f06` (Block: 33852257)
+- **Optimism Network**: `0x44716439C19c2E8BD6E1bCB5556ed4C31dA8cDc7` (Block: 139447565)
+
+### New Tables for Resolver Support
+- **LimitOrder**: Tracks order state for resolver queries
+- **OrderFilled**: Records partial and full order fills
+- **OrderCancelled**: Tracks cancelled orders
+- **BitInvalidatorUpdated**: Order invalidation state for resolvers
+- **EpochIncreased**: Epoch tracking for order series management
+
+### Key Features for Resolvers
+- Real-time order status tracking
+- Partial fill amount monitoring  
+- Order cancellation detection
+- Bit invalidation state for mass order management
+- Epoch-based order series support
+
+## 6. Current Limitations
 
 ### CREATE2 Address Calculation
 - **Issue**: Placeholder implementation in `addressCalculation.ts`
@@ -156,9 +188,9 @@ Volumes:
 - **Impact**: Potential service interruption on aggressive indexing
 - **Solution**: Implement exponential backoff and request queuing
 
-## 6. Next Steps (Priority Order)
+## 7. Next Steps (Priority Order)
 
-### 🔴 Critical (Week 1-2)
+### 🔴 Critical (Immediate Priority)
 
 #### 1. Implement CREATE2 Address Calculation
 ```typescript
@@ -189,7 +221,7 @@ OPTIMISM_START_BLOCK=139404873  # Factory deployment block
 - API endpoint integration tests
 ```
 
-### 🟡 Important (Week 3-4)
+### 🟡 Important (Secondary Priority)
 
 #### 4. RPC Rate Limiting
 ```typescript
@@ -216,7 +248,7 @@ OPTIMISM_START_BLOCK=139404873  # Factory deployment block
 - CI/CD pipeline (GitHub Actions)
 ```
 
-### 🟢 Enhancement (Month 2+)
+### 🟢 Enhancement (Future)
 
 #### 7. Additional Chain Support
 ```typescript
@@ -229,7 +261,7 @@ OPTIMISM_START_BLOCK=139404873  # Factory deployment block
 #### 8. Data Archival Strategy
 ```sql
 -- Implement time-based partitioning
-- Archive completed swaps > 90 days
+- Archive old completed swaps
 - Compress historical statistics
 - S3/GCS cold storage integration
 ```
