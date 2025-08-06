@@ -9,7 +9,13 @@ import {
   chainStatistics,
   bmnTransfer,
   bmnApproval,
-  bmnTokenHolder
+  bmnTokenHolder,
+  limitOrder,
+  orderFilled,
+  orderCancelled,
+  bitInvalidatorUpdated,
+  epochIncreased,
+  limitOrderStatistics
 } from "ponder:schema";
 
 // Helper function to decode packed address from uint256
@@ -563,3 +569,206 @@ ponder.on("BmnToken:Approval", async ({ event, context }) => {
       transactionHash: event.transaction.hash,
     });
 });
+
+// SimpleLimitOrderProtocol Event Handlers
+
+ponder.on("SimpleLimitOrderProtocol:OrderFilled", async ({ event, context }) => {
+  const chainId = context.chain.id;
+  const { orderHash, remainingAmount } = event.args;
+  
+  // Record the fill event
+  await context.db.insert(orderFilled).values({
+    id: `${chainId}-${event.transaction.hash}-${event.log.logIndex}`,
+    chainId: chainId,
+    orderHash: orderHash,
+    remainingAmount: remainingAmount,
+    taker: event.transaction.from?.toLowerCase(),
+    blockNumber: event.block.number,
+    blockTimestamp: event.block.timestamp,
+    transactionHash: event.transaction.hash,
+    logIndex: event.log.logIndex,
+  });
+  
+  // Update or create limit order record
+  const orderId = `${chainId}-${orderHash}`;
+  const existingOrder = await context.db.find(limitOrder, { id: orderId });
+  
+  if (existingOrder) {
+    // Update existing order
+    const status = remainingAmount === 0n ? "filled" : "partially_filled";
+    await context.db
+      .update(limitOrder, { id: orderId })
+      .set({
+        remainingAmount: remainingAmount,
+        status: status,
+        updatedAt: event.block.timestamp,
+      });
+  } else {
+    // Create new order record (first time seeing this order)
+    // Note: We don't have full order details from just the fill event
+    await context.db.insert(limitOrder).values({
+      id: orderId,
+      chainId: chainId,
+      orderHash: orderHash,
+      maker: "0x", // Will be updated when we see the order creation
+      makerAsset: "0x",
+      takerAsset: "0x",
+      makingAmount: 0n,
+      takingAmount: 0n,
+      remainingAmount: remainingAmount,
+      status: remainingAmount === 0n ? "filled" : "partially_filled",
+      createdAt: event.block.timestamp,
+      updatedAt: event.block.timestamp,
+      blockNumber: event.block.number,
+      transactionHash: event.transaction.hash,
+    });
+  }
+  
+  // Update statistics
+  await updateLimitOrderStatistics(context, chainId, event.block.number, "fill");
+});
+
+ponder.on("SimpleLimitOrderProtocol:OrderCancelled", async ({ event, context }) => {
+  const chainId = context.chain.id;
+  const { orderHash } = event.args;
+  
+  // Record the cancellation
+  await context.db.insert(orderCancelled).values({
+    id: `${chainId}-${orderHash}`,
+    chainId: chainId,
+    orderHash: orderHash,
+    maker: event.transaction.from?.toLowerCase(),
+    cancelledAt: event.block.timestamp,
+    blockNumber: event.block.number,
+    transactionHash: event.transaction.hash,
+  });
+  
+  // Update order status
+  const orderId = `${chainId}-${orderHash}`;
+  const existingOrder = await context.db.find(limitOrder, { id: orderId });
+  
+  if (existingOrder) {
+    await context.db
+      .update(limitOrder, { id: orderId })
+      .set({
+        status: "cancelled",
+        updatedAt: event.block.timestamp,
+      });
+  } else {
+    // Create cancelled order record
+    await context.db.insert(limitOrder).values({
+      id: orderId,
+      chainId: chainId,
+      orderHash: orderHash,
+      maker: event.transaction.from?.toLowerCase() || "0x",
+      makerAsset: "0x",
+      takerAsset: "0x",
+      makingAmount: 0n,
+      takingAmount: 0n,
+      remainingAmount: 0n,
+      status: "cancelled",
+      createdAt: event.block.timestamp,
+      updatedAt: event.block.timestamp,
+      blockNumber: event.block.number,
+      transactionHash: event.transaction.hash,
+    });
+  }
+  
+  // Update statistics
+  await updateLimitOrderStatistics(context, chainId, event.block.number, "cancel");
+});
+
+ponder.on("SimpleLimitOrderProtocol:BitInvalidatorUpdated", async ({ event, context }) => {
+  const chainId = context.chain.id;
+  const { maker, slotIndex, slotValue } = event.args;
+  
+  // Update or insert bit invalidator record
+  await context.db
+    .insert(bitInvalidatorUpdated)
+    .values({
+      id: `${chainId}-${maker.toLowerCase()}-${slotIndex}`,
+      chainId: chainId,
+      maker: maker.toLowerCase(),
+      slotIndex: slotIndex,
+      slotValue: slotValue,
+      blockNumber: event.block.number,
+      blockTimestamp: event.block.timestamp,
+      transactionHash: event.transaction.hash,
+    })
+    .onConflictDoUpdate({
+      slotValue: slotValue,
+      blockNumber: event.block.number,
+      blockTimestamp: event.block.timestamp,
+      transactionHash: event.transaction.hash,
+    });
+});
+
+ponder.on("SimpleLimitOrderProtocol:EpochIncreased", async ({ event, context }) => {
+  const chainId = context.chain.id;
+  const { maker, series, newEpoch } = event.args;
+  
+  // Update or insert epoch record
+  await context.db
+    .insert(epochIncreased)
+    .values({
+      id: `${chainId}-${maker.toLowerCase()}-${series}`,
+      chainId: chainId,
+      maker: maker.toLowerCase(),
+      series: series,
+      newEpoch: newEpoch,
+      blockNumber: event.block.number,
+      blockTimestamp: event.block.timestamp,
+      transactionHash: event.transaction.hash,
+    })
+    .onConflictDoUpdate({
+      newEpoch: newEpoch,
+      blockNumber: event.block.number,
+      blockTimestamp: event.block.timestamp,
+      transactionHash: event.transaction.hash,
+    });
+});
+
+// Helper function to update limit order statistics
+async function updateLimitOrderStatistics(
+  context: any,
+  chainId: number,
+  blockNumber: bigint,
+  action: "fill" | "cancel" | "create"
+) {
+  const statsId = chainId.toString();
+  const currentStats = await context.db.find(limitOrderStatistics, { id: statsId });
+  
+  if (currentStats) {
+    const updates: any = {
+      lastUpdatedBlock: blockNumber,
+    };
+    
+    if (action === "fill") {
+      updates.filledOrders = currentStats.filledOrders + 1n;
+      updates.activeOrders = currentStats.activeOrders > 0n ? currentStats.activeOrders - 1n : 0n;
+    } else if (action === "cancel") {
+      updates.cancelledOrders = currentStats.cancelledOrders + 1n;
+      updates.activeOrders = currentStats.activeOrders > 0n ? currentStats.activeOrders - 1n : 0n;
+    } else if (action === "create") {
+      updates.totalOrders = currentStats.totalOrders + 1n;
+      updates.activeOrders = currentStats.activeOrders + 1n;
+    }
+    
+    await context.db
+      .update(limitOrderStatistics, { id: statsId })
+      .set(updates);
+  } else {
+    // Initialize statistics
+    await context.db.insert(limitOrderStatistics).values({
+      id: statsId,
+      chainId: chainId,
+      totalOrders: action === "create" ? 1n : 0n,
+      activeOrders: action === "create" ? 1n : 0n,
+      filledOrders: action === "fill" ? 1n : 0n,
+      partiallyFilledOrders: 0n,
+      cancelledOrders: action === "cancel" ? 1n : 0n,
+      totalVolume: 0n,
+      lastUpdatedBlock: blockNumber,
+    });
+  }
+}
