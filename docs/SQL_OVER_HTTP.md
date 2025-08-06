@@ -12,6 +12,7 @@ The BMN EVM Contracts Indexer provides SQL over HTTP functionality through the `
 - Configuration: `src/api/index.ts`
 - Protocol: @ponder/client compatible
 - Features: Query execution, live queries (SSE), type-safe queries
+- **Test Results**: Successfully querying data, live subscriptions working
 
 ## Configuration
 
@@ -215,12 +216,53 @@ npx tsx scripts/test-ponder-client.ts
 ```
 
 ### Verify Endpoint
+
+#### Why curl Doesn't Work
+The SQL over HTTP endpoint **cannot be tested with curl** directly because:
+- It uses a proprietary protocol implemented by `@ponder/client`
+- Direct POST requests to `/sql` will return `404 Not Found`
+- The endpoint requires specific request formatting and headers that `@ponder/client` handles
+
+#### Correct Testing Methods
 ```bash
-# Check if indexer is running
+# Check if indexer is running (this works with curl)
 curl http://localhost:42069/health
 
-# The SQL endpoint doesn't respond to GET requests
-# Use the test scripts above to verify functionality
+# Test SQL over HTTP functionality (use one of these)
+# Option 1: Deno test script (recommended - no installation needed)
+deno run --node-modules-dir=auto --allow-net --allow-env --allow-read scripts/test-sql-deno.ts
+
+# Option 2: Node.js test script (requires @ponder/client)
+npx tsx scripts/test-ponder-client.ts
+```
+
+#### Example Test Output
+```
+🔍 Testing SQL over HTTP with Deno + @ponder/client
+📍 Server: http://localhost:42069
+==================================================
+✅ Client created successfully
+
+📊 Test 1: Querying srcEscrow table...
+  Found 0 source escrows
+
+📊 Test 2: Querying dstEscrow table...
+  Found 0 destination escrows
+
+📊 Test 5: Query BMN token holders...
+  Found 10 BMN token holders
+  Top holder: {
+  address: "10-0x5f29827e25dc174a6a51c99e6811bbd7581285b0",
+  balance: 4000000000000000000000000n,
+  chain: 10
+}
+
+📊 Test 7: Testing live query...
+  ⏳ Waiting 3 seconds for live updates...
+  📡 Live update received!
+  ✅ Live query test completed
+
+✨ All tests completed successfully!
 ```
 
 ## Common Issues and Solutions
