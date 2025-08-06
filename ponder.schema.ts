@@ -218,3 +218,101 @@ export const limitOrderStatistics = onchainTable("limit_order_statistics", (t) =
   totalVolume: t.bigint().notNull(),
   lastUpdatedBlock: t.bigint().notNull(),
 }));
+
+// V2.1.0 Factory Events - Resolver Management
+export const resolverWhitelist = onchainTable("resolver_whitelist", (t) => ({
+  id: t.text().primaryKey(), // chainId-resolver
+  chainId: t.integer().notNull(),
+  resolver: t.text().notNull(),
+  isWhitelisted: t.boolean().notNull(),
+  isActive: t.boolean().notNull(),
+  addedAt: t.bigint(),
+  addedBy: t.text(),
+  suspendedUntil: t.bigint(),
+  totalTransactions: t.bigint().notNull(),
+  failedTransactions: t.bigint().notNull(),
+  lastActivityBlock: t.bigint(),
+  blockNumber: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+export const resolverSuspension = onchainTable("resolver_suspension", (t) => ({
+  id: t.text().primaryKey(), // chainId-resolver-blockNumber
+  chainId: t.integer().notNull(),
+  resolver: t.text().notNull(),
+  suspendedUntil: t.bigint().notNull(),
+  reason: t.text(),
+  blockNumber: t.bigint().notNull(),
+  blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.1.0 Factory Events - Admin Management
+export const factoryAdmin = onchainTable("factory_admin", (t) => ({
+  id: t.text().primaryKey(), // chainId-admin
+  chainId: t.integer().notNull(),
+  admin: t.text().notNull(),
+  isActive: t.boolean().notNull(),
+  addedAt: t.bigint(),
+  removedAt: t.bigint(),
+  blockNumber: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.1.0 Factory Events - Emergency Pause
+export const emergencyPause = onchainTable("emergency_pause", (t) => ({
+  id: t.text().primaryKey(), // chainId-blockNumber
+  chainId: t.integer().notNull(),
+  isPaused: t.boolean().notNull(),
+  pausedAt: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.1.0 Factory Events - Swap Metrics
+export const swapMetrics = onchainTable("swap_metrics", (t) => ({
+  id: t.text().primaryKey(), // chainId-orderHash
+  chainId: t.integer().notNull(),
+  orderHash: t.hex(),
+  escrowSrc: t.text(),
+  maker: t.text(),
+  resolver: t.text(),
+  volume: t.bigint(),
+  srcChainId: t.bigint(),
+  dstChainId: t.bigint(),
+  completionTime: t.bigint(),
+  gasUsed: t.bigint(),
+  status: t.text().notNull(), // "initiated", "completed", "failed"
+  blockNumber: t.bigint().notNull(),
+  blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.1.0 Factory Events - Interaction Tracking
+export const interactionTracking = onchainTable("interaction_tracking", (t) => ({
+  id: t.text().primaryKey(), // chainId-interactionHash
+  chainId: t.integer().notNull(),
+  orderMaker: t.text().notNull(),
+  interactionTarget: t.text().notNull(),
+  interactionHash: t.hex().notNull(),
+  status: t.text().notNull(), // "executed", "failed"
+  failureReason: t.text(),
+  executedAt: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.1.0 Factory Events - Global Metrics
+export const factoryMetrics = onchainTable("factory_metrics", (t) => ({
+  id: t.text().primaryKey(), // chainId-blockNumber
+  chainId: t.integer().notNull(),
+  totalVolume: t.bigint().notNull(),
+  successRate: t.bigint().notNull(),
+  avgCompletionTime: t.bigint().notNull(),
+  activeResolvers: t.bigint().notNull(),
+  successfulSwaps: t.bigint().notNull(),
+  failedSwaps: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
