@@ -1,12 +1,13 @@
 # Project Status Report: BMN EVM Contracts Indexer
 
-**Project Version**: 1.1.0-alpha  
+**Project Version**: 2.0.0  
 **Framework**: Ponder v0.12.0  
+**Last Updated**: August 6, 2025
 
 ## 1. Project Status Overview
 
 ### Current State
-The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing service that tracks atomic swap operations across Base (Chain ID: 8453) and Optimism (Chain ID: 10) networks. The indexer is **production-ready** with minor optimizations pending.
+The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing service that tracks atomic swap operations across Base (Chain ID: 8453) and Optimism (Chain ID: 10) networks. The indexer is **production-ready** with full v2.1.0 factory support.
 
 ### Integration Status
 - ✅ **Core Indexing**: Operational with real-time event tracking
@@ -14,8 +15,9 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
 - ✅ **API Layer**: GraphQL endpoint serving indexed data
 - ✅ **Infrastructure**: Docker-based deployment ready
 - ✅ **Limit Order Protocol**: SimpleLimitOrderProtocol indexing integrated
+- ✅ **v2.1.0 Factory**: Full support for resolver whitelist and enhanced metrics
+- ✅ **Emergency Controls**: Pause mechanism tracking implemented
 - ⚠️ **CREATE2 Calculation**: Placeholder implementation requires update
-- ⚠️ **Start Blocks**: Configuration needed for optimal performance
 
 ## 2. Completed Features
 
@@ -28,9 +30,16 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
 
 ### Event Tracking Coverage
 ```typescript
-// Factory Events
-- SrcEscrowCreated: Source chain escrow initialization
-- DstEscrowCreated: Destination chain escrow initialization
+// Factory Events (v2.1.0)
+- SrcEscrowCreated: Source chain escrow initialization (enhanced)
+- DstEscrowCreated: Destination chain escrow initialization (enhanced)
+- ResolverWhitelisted/Removed: Resolver access control
+- ResolverSuspended/Reactivated: Resolver status management
+- AdminAdded/Removed: Factory admin management
+- EmergencyPause: Factory pause events
+- SwapInitiated/Completed: High-level swap tracking
+- InteractionExecuted/Failed: Limit order interactions
+- MetricsUpdated: Protocol-wide statistics
 
 // Escrow Lifecycle Events  
 - EscrowWithdrawal: Successful atomic swap completion
@@ -43,6 +52,14 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
 - BitInvalidatorUpdated: Order bit invalidation state
 - EpochIncreased: Epoch management for order series
 ```
+
+### v2.1.0 Factory Integration (August 6, 2025)
+- **New Factory Address**: `0xBc9A20A9FCb7571B2593e85D2533E10e3e9dC61A`
+- **Resolver Whitelist**: Full tracking of whitelisted resolvers
+- **Enhanced Metrics**: Comprehensive swap and protocol analytics
+- **Admin Controls**: Multi-admin support with event tracking
+- **Emergency Pause**: Factory pause mechanism monitoring
+- **Interaction Tracking**: Detailed limit order protocol interactions
 
 ### Database Implementation
 - **Schema Tables**: 16 tables with optimized indexes
