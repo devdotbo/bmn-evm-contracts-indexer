@@ -3,8 +3,15 @@ node_modules/
 
 # Environment variables
 .env
+.env.*
 .env.local
 .env.*.local
+*.env
+.env.backup
+.env.production
+.env.development
+.env.test
+.env.staging
 
 # Ponder generated files
 .ponder/
@@ -64,3 +71,20 @@ postgres_backup/
 agent-architecture-analysis.md
 
 temp_log.txt
+
+# Security - Never commit secrets
+secrets-to-remove.txt
+*.key
+*.pem
+*.cert
+*.crt
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+.secrets
+secrets/
+
+# BFG cleanup reports
+.bfg-report/
+..bfg-report/

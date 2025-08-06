@@ -7,7 +7,7 @@
 ## 1. Project Status Overview
 
 ### Current State
-The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing service that tracks atomic swap operations across Base (Chain ID: 8453) and Etherlink (Chain ID: 42793) networks. The indexer is **production-ready** with minor optimizations pending.
+The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing service that tracks atomic swap operations across Base (Chain ID: 8453) and Optimism (Chain ID: 10) networks. The indexer is **production-ready** with minor optimizations pending.
 
 ### Integration Status
 - ✅ **Core Indexing**: Operational with real-time event tracking
@@ -21,9 +21,10 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
 
 ### Multi-Chain Indexing
 - **Base Network (8453)**: Full support with WebSocket + HTTP fallback
-- **Etherlink Network (42793)**: Full support with WebSocket + HTTP fallback
+- **Optimism Network (10)**: Full support with WebSocket + HTTP fallback
 - **Cross-Chain Correlation**: Hashlock-based linking of source/destination escrows
 - **Dynamic Contract Discovery**: Tracks dynamically created escrow contracts
+- **BMN Token Tracking**: Full ERC20 token transfer and approval indexing
 
 ### Event Tracking Coverage
 ```typescript
@@ -38,7 +39,7 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
 ```
 
 ### Database Implementation
-- **Schema Tables**: 7 tables with optimized indexes
+- **Schema Tables**: 10 tables with optimized indexes
   - `SrcEscrow`: Source chain escrow records
   - `DstEscrow`: Destination chain escrow records
   - `EscrowWithdrawal`: Successful withdrawal transactions
@@ -46,15 +47,21 @@ The BMN EVM Contracts Indexer is a **fully functional** blockchain indexing serv
   - `FundsRescued`: Fund rescue events
   - `AtomicSwap`: Aggregated swap state
   - `ChainStatistics`: Real-time protocol analytics
+  - `BmnTransfer`: BMN token transfer events
+  - `BmnApproval`: BMN token approval states
+  - `BmnTokenHolder`: BMN token holder balances
 
 ### API Features
 - **GraphQL Endpoint**: `http://localhost:42069/graphql`
+- **SQL over HTTP**: `http://localhost:42069/sql/*` (Fully operational)
 - **Health Monitoring**: `/health` and `/ready` endpoints
 - **Query Capabilities**: 
   - Escrow lookup by ID/address
   - Cross-chain swap status
   - Statistical aggregations
   - Historical event queries
+  - Type-safe SQL queries via @ponder/client
+  - Live subscriptions (Server-Sent Events)
 
 ### Infrastructure Components
 - **Docker Containerization**: Multi-stage build optimized for production
@@ -137,7 +144,7 @@ Volumes:
 ### Start Block Configuration
 - **Issue**: Environment variables not set for optimal starting points
 - **Impact**: May index unnecessary historical blocks
-- **Solution**: Set BASE_START_BLOCK and ETHERLINK_START_BLOCK
+- **Solution**: Set BASE_START_BLOCK and OPTIMISM_START_BLOCK
 
 ### Test Coverage
 - **Current**: 0% - No test suite implemented
@@ -169,8 +176,8 @@ export function calculateCreate2Address(
 #### 2. Configure Start Blocks
 ```bash
 # .env configuration
-BASE_START_BLOCK=12000000      # Actual factory deployment block
-ETHERLINK_START_BLOCK=5000000  # Actual factory deployment block
+BASE_START_BLOCK=33809842      # Factory deployment block
+OPTIMISM_START_BLOCK=139404873  # Factory deployment block
 ```
 
 #### 3. Add Core Test Suite
@@ -248,8 +255,8 @@ CREATE INDEX idx_src_escrow_chain_address ON SrcEscrow(chainId, escrowAddress);
 
 ### RPC Rate Limit Handling
 - **Base Network**: Typically 10-25 req/sec on public RPCs
-- **Etherlink**: Limits vary by provider
-- **Strategy**: Premium RPC endpoints recommended for production
+- **Optimism**: Limits vary by provider
+- **Strategy**: Premium RPC endpoints recommended for production (Ankr API configured)
 
 ## 8. Security Considerations
 
