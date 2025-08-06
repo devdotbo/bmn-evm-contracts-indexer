@@ -1,8 +1,7 @@
 # Multi-stage Dockerfile for Ponder Indexer
-ARG NODE_VERSION=20-alpine
 
 # Stage 1: Dependencies
-FROM node:${NODE_VERSION} AS deps
+FROM node:20-slim AS deps
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -17,7 +16,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
 # Stage 2: Build
-FROM node:${NODE_VERSION} AS builder
+FROM node:20-slim AS builder
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -34,43 +33,45 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
-# Generate types from schema
-RUN pnpm run codegen
-
+# Skip codegen during build - will run at startup
+# This avoids rollup architecture-specific issues
 # Build TypeScript (if needed)
 # Skip type checking as Ponder handles its own types internally
 
 # Stage 3: Runtime
-FROM node:${NODE_VERSION} AS runtime
+FROM node:20-slim AS runtime
 
 # Install dumb-init for proper signal handling and pnpm
-RUN apk add --no-cache dumb-init && \
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init && \
+    rm -rf /var/lib/apt/lists/* && \
     corepack enable && corepack prepare pnpm@latest --activate
 
 # Create non-root user
-RUN addgroup -g 1001 -S ponder && \
-    adduser -S ponder -u 1001 -G ponder
+RUN groupadd -g 1001 ponder && \
+    useradd -m -u 1001 -g ponder ponder
 
 # Set working directory
 WORKDIR /app
 
-# Copy production dependencies from deps stage
-COPY --from=deps --chown=ponder:ponder /app/node_modules ./node_modules
-
-# Copy package files
+# Copy package files first
 COPY --chown=ponder:ponder package.json pnpm-lock.yaml ./
 
-# Copy built application and generated files (if they exist)
-# The generated directory may not exist in all cases
-COPY --from=builder --chown=ponder:ponder /app/generated* ./
+# Install ALL dependencies directly in runtime (ensures correct architecture binaries)
+RUN pnpm install --frozen-lockfile
 
-# Copy source files
+# Copy source files needed for codegen
 COPY --chown=ponder:ponder ponder.config.ts ponder.schema.ts ponder-env.d.ts* ./
 COPY --chown=ponder:ponder src/index.ts ./src/
 COPY --chown=ponder:ponder src/api ./src/api
 COPY --chown=ponder:ponder abis ./abis
 
-# Create directories for runtime
+# Run codegen once during build (as root for file permissions)
+RUN pnpm run codegen
+
+# Clean up dev dependencies to reduce image size (optional)
+RUN pnpm prune --prod
+
+# Create directories for runtime and set ownership
 RUN mkdir -p /app/.ponder && \
     chown -R ponder:ponder /app
 
@@ -87,5 +88,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the indexer using pnpm
+# Start the indexer (codegen already ran during build)
 CMD ["pnpm", "run", "start", "--log-level", "info"]
