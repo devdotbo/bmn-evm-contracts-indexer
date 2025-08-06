@@ -5,15 +5,20 @@
 [![Framework](https://img.shields.io/badge/framework-Ponder%20v0.12.0-blue)](https://ponder.sh)
 [![Docker](https://img.shields.io/badge/docker-ready-blue)](https://www.docker.com)
 
-A high-performance indexer for the Bridge Me Not (BMN) atomic swap protocol, tracking cross-chain escrow operations across Base and Optimism networks using the Ponder framework.
+A high-performance blockchain indexer for the Bridge Me Not (BMN) atomic swap protocol, tracking cross-chain escrow operations and limit orders across Base and Optimism networks.
 
 ## 🚀 Features
 
+- **Multi-Protocol Support**: Indexes both CrossChainEscrowFactory and SimpleLimitOrderProtocol
 - **Real-time Indexing**: WebSocket connections with HTTP fallback for instant event processing
-- **Multi-chain Support**: Simultaneous indexing of Base (8453) and Optimism (10) networks
+- **Cross-chain Support**: Simultaneous indexing of Base (8453) and Optimism (10) networks
 - **GraphQL API**: Query indexed data through a powerful GraphQL interface
-- **Event Tracking**: Comprehensive tracking of escrow creation, withdrawals, cancellations, and fund rescues
-- **BMN Token Indexing**: Full ERC20 token tracking including transfers, approvals, and holder balances
+- **SQL over HTTP**: Direct SQL queries via @ponder/client for advanced use cases
+- **Comprehensive Event Tracking**: 
+  - Escrow creation, withdrawals, and cancellations
+  - Limit order fills and cancellations
+  - BMN token transfers and approvals
+  - Bit invalidation and epoch management
 - **Cross-chain Correlation**: Automatic linking of source and destination escrows via hashlock
 - **Analytics**: Built-in chain statistics and protocol metrics
 - **Docker Ready**: Complete containerization with Docker Compose
@@ -24,394 +29,275 @@ A high-performance indexer for the Bridge Me Not (BMN) atomic swap protocol, tra
 - **Node.js**: >= 18.14
 - **pnpm**: >= 8.0 (recommended) or npm
 - **Docker & Docker Compose**: For containerized deployment
-- **PostgreSQL**: 14+ (if running locally without Docker)
-- **RPC Endpoints**: Ankr API key for Base and Optimism access
+- **PostgreSQL**: 16+ (if running locally without Docker)
+- **Ankr API Key**: For Base and Optimism RPC access
+
+## 🏗️ Architecture Overview
+
+### Indexed Contracts
+
+#### CrossChainEscrowFactory
+- **Address**: `0xB916C3edbFe574fFCBa688A6B92F72106479bD6c`
+- **Networks**: Base (33809842), Optimism (139404873)
+- **Events**: SrcEscrowCreated, DstEscrowCreated
+
+#### SimpleLimitOrderProtocol
+- **Base**: `0x1c1A74b677A28ff92f4AbF874b3Aa6dE864D3f06` (Block: 33852257)
+- **Optimism**: `0x44716439C19c2E8BD6E1bCB5556ed4C31dA8cDc7` (Block: 139447565)
+- **Events**: OrderFilled, OrderCancelled, BitInvalidatorUpdated, EpochIncreased
+
+#### BMN Token (ERC20)
+- **Address**: `0x8287CD2aC7E227D9D927F998EB600a0683a832A1`
+- **Base Start**: Block 33717297
+- **Optimism Start**: Block 139404696
+- **Events**: Transfer, Approval
+
+### Database Schema
+
+The indexer maintains 16 tables optimized for resolver queries:
+
+**Core Escrow Tables:**
+- `src_escrow` - Source chain escrow records
+- `dst_escrow` - Destination chain escrow records
+- `escrow_withdrawal` - Successful withdrawals
+- `escrow_cancellation` - Cancellation records
+- `funds_rescued` - Emergency fund recovery
+- `atomic_swap` - Aggregated cross-chain swap state
+
+**Limit Order Tables:**
+- `limit_order` - Order state tracking for resolvers
+- `order_filled` - Fill events with remaining amounts
+- `order_cancelled` - Cancellation tracking
+- `bit_invalidator_updated` - Bit invalidation state
+- `epoch_increased` - Epoch management for order series
+- `limit_order_statistics` - Protocol analytics
+
+**BMN Token Tables:**
+- `bmn_transfer` - All token transfers
+- `bmn_approval` - Current approval states
+- `bmn_token_holder` - Holder balances and statistics
+
+**Analytics:**
+- `chain_statistics` - Real-time protocol metrics per chain
 
 ## 🏃 Quick Start
 
-### Option 1: Docker Deployment (Recommended)
+### Using Make Commands (Recommended)
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-org/bmn-evm-contracts-indexer.git
-   cd bmn-evm-contracts-indexer
-   ```
+```bash
+# Initial setup
+make setup        # Configure environment and install dependencies
+make dev          # Start development environment with hot reloading
 
-2. **Configure environment**
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your RPC endpoints and configuration
-   # IMPORTANT: Ponder uses .env.local by default, NOT .env
-   ```
+# Database operations
+make db-up        # Start PostgreSQL and PgAdmin
+make codegen      # Generate TypeScript types from schema
 
-3. **Start with Docker Compose**
-   ```bash
-   make docker-up
-   # or
-   docker-compose up -d
-   ```
-
-4. **Access services**
-   - GraphQL API: http://localhost:42069/graphql
-   - PgAdmin: http://localhost:5433
-   - Health Check: http://localhost:42069/health
-
-### Option 2: Local Development
-
-1. **Install dependencies**
-   ```bash
-   pnpm install
-   # or
-   npm install
-   ```
-
-2. **Set up environment**
-   ```bash
-   cp .env.example .env.local
-   # Configure your RPC endpoints and database credentials
-   # IMPORTANT: Ponder uses .env.local by default, NOT .env
-   ```
-
-3. **Start development environment**
-   ```bash
-   # Start database and all services
-   make dev
-
-   # Or start indexer only (requires existing database)
-   pnpm dev
-   ```
-
-## 🏗️ Architecture
-
-### System Overview
-
-```
-┌─────────────────┐     ┌─────────────────┐
-│   Base Chain    │     │ Etherlink Chain │
-│   (8453)        │     │    (42793)      │
-└────────┬────────┘     └────────┬────────┘
-         │                       │
-         │  WebSocket/HTTP       │
-         └───────────┬───────────┘
-                     │
-            ┌────────┴────────┐
-            │  Ponder Engine  │
-            │                 │
-            │ • Event Processor│
-            │ • State Manager  │
-            │ • API Server    │
-            └────────┬────────┘
-                     │
-            ┌────────┴────────┐
-            │   PostgreSQL    │
-            │                 │
-            │ • Escrow Data   │
-            │ • Swap States   │
-            │ • Statistics    │
-            └─────────────────┘
+# Code quality
+make lint-fix     # Run ESLint with auto-fix
+make format       # Format code with Prettier
 ```
 
-### Core Components
+### Manual Setup
 
-1. **ponder.config.ts**: Multi-chain network configuration
-2. **ponder.schema.ts**: Database schema definitions
-3. **src/index.ts**: Event indexing logic and handlers
-4. **abis/**: Contract ABI definitions
+1. **Clone and configure**
+```bash
+git clone <repository-url>
+cd bmn-evm-contracts-indexer
+cp .env.example .env
+```
 
-### Data Flow
+2. **Set required environment variables**
+```env
+ANKR_API_KEY=your_ankr_api_key
+DATABASE_URL=postgresql://ponder:ponder123@localhost:5432/bmn_indexer
+```
 
-1. **Event Detection**: WebSocket listeners detect contract events in real-time
-2. **Event Processing**: Ponder processes events through defined handlers
-3. **State Updates**: Database tables are updated with parsed event data
-4. **API Serving**: GraphQL endpoint serves indexed data to clients
+3. **Install and run**
+```bash
+pnpm install
+pnpm run codegen
+pnpm ponder dev
+```
 
-## 📡 API Documentation
+## 📡 API Access
 
 ### GraphQL Endpoint
+- **URL**: `http://localhost:42069/graphql`
+- **Playground**: Available at the same URL in browser
 
-Base URL: `http://localhost:42069/graphql`
+### SQL over HTTP
+- **URL**: `http://localhost:42069/sql/*`
+- **Documentation**: See `docs/SQL_OVER_HTTP.md`
+- **Test Script**: `deno run --node-modules-dir=auto --allow-net --allow-env --allow-read scripts/test-sql-deno.ts`
 
-### Example Queries
+### Health Endpoints
+- **Health Check**: `http://localhost:42069/health`
+- **Ready Check**: `http://localhost:42069/ready`
 
-#### Get Active Escrows
+## 🔍 Example Queries
+
+### GraphQL: Get Active Limit Orders
 ```graphql
-query GetActiveEscrows {
-  srcEscrows(where: { status: "active" }) {
+query GetActiveOrders {
+  limitOrders(where: { status: "active" }) {
     id
-    sender
-    srcAsset
-    dstAsset
-    dstAmount
-    hashlock
-    timestamp
-  }
-}
-```
-
-#### Get Cross-chain Swap Status
-```graphql
-query GetSwapStatus($hashlock: String!) {
-  atomicSwap(id: $hashlock) {
-    id
-    srcChainId
-    dstChainId
-    srcEscrowAddress
-    dstEscrowAddress
+    orderHash
+    maker
+    makerAsset
+    takerAsset
+    makingAmount
+    takingAmount
+    remainingAmount
     status
-    createdAt
-    completedAt
   }
 }
 ```
 
-#### Get Chain Statistics
+### GraphQL: Track Order Fills
 ```graphql
-query GetChainStats {
-  chainStatistics {
+query GetOrderFills($orderHash: String!) {
+  orderFilleds(where: { orderHash: $orderHash }) {
     id
-    chainId
-    totalEscrowsCreated
-    totalWithdrawals
-    totalCancellations
-    totalVolumeUSD
-    lastUpdated
+    remainingAmount
+    taker
+    blockNumber
+    transactionHash
   }
 }
 ```
 
-### Health Check Endpoints
-
-- **Health**: `GET http://localhost:42069/health`
-- **Ready**: `GET http://localhost:42069/ready`
+### SQL: Get Cross-Chain Swap Status
+```sql
+SELECT 
+  as.order_hash,
+  as.src_chain_id,
+  as.dst_chain_id,
+  as.status,
+  as.src_escrow_address,
+  as.dst_escrow_address
+FROM atomic_swap as
+WHERE as.hashlock = $1
+```
 
 ## ⚙️ Configuration
 
 ### Environment Variables
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `PONDER_RPC_URL_8453` | Base network RPC endpoint | Yes | - |
-| `PONDER_RPC_URL_42793` | Etherlink network RPC endpoint | Yes | - |
-| `PONDER_WS_URL_8453` | Base WebSocket endpoint | No | - |
-| `PONDER_WS_URL_42793` | Etherlink WebSocket endpoint | No | - |
-| `BASE_START_BLOCK` | Base indexing start block | No | 0 |
-| `ETHERLINK_START_BLOCK` | Etherlink indexing start block | No | 0 |
-| `POSTGRES_USER` | PostgreSQL username | Yes | ponder |
-| `POSTGRES_PASSWORD` | PostgreSQL password | Yes | - |
-| `POSTGRES_DB` | PostgreSQL database name | Yes | bmn_indexer |
-| `NODE_ENV` | Environment (development/production) | No | production |
-
-### Contract Addresses
-
-| Contract | Address | Networks |
-|----------|---------|----------|
-| CrossChainEscrowFactory | `0x75ee15F6BfDd06Aee499ed95e8D92a114659f4d1` | Base, Etherlink |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `ANKR_API_KEY` | Ankr API key for RPC access | Yes |
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `BASE_START_BLOCK` | Base indexing start block | No |
+| `OPTIMISM_START_BLOCK` | Optimism indexing start block | No |
+| `POSTGRES_USER` | Database user | Yes |
+| `POSTGRES_PASSWORD` | Database password | Yes |
+| `POSTGRES_DB` | Database name | Yes |
+| `NODE_ENV` | Environment mode | No |
+| `PONDER_LOG_LEVEL` | Logging level (info/debug) | No |
 
 ## 🛠️ Development
 
-### Local Setup
+### Adding New Events
 
-1. **Install dependencies**
-   ```bash
-   pnpm install
-   ```
-
-2. **Start development services**
-   ```bash
-   make dev
-   ```
-
-3. **Run type checking**
-   ```bash
-   pnpm typecheck
-   ```
-
-4. **Lint code**
-   ```bash
-   pnpm lint
-   ```
-
-5. **Format code**
-   ```bash
-   pnpm format
-   ```
-
-### Adding New Chains
-
-1. Update `ponder.config.ts`:
-   ```typescript
-   chains: {
-     newChain: {
-       id: YOUR_CHAIN_ID,
-       transport: fallback([
-         webSocket(process.env.PONDER_WS_URL_YOUR_CHAIN),
-         http(process.env.PONDER_RPC_URL_YOUR_CHAIN)
-       ]),
-       maxHistoricalBlockRange: 2000, // Adjust based on RPC limits
-     },
-   }
-   ```
-
-2. Add contract configuration for the new chain
-3. Update environment variables
-4. Run `pnpm codegen` to generate types
-
-### Schema Modifications
-
-1. Edit `ponder.schema.ts`
-2. Run `pnpm codegen` to regenerate types
-3. Update event handlers in `src/index.ts`
+1. Update contract ABI in `abis/`
+2. Add event handler in `src/index.ts`:
+```typescript
+ponder.on("ContractName:EventName", async ({ event, context }) => {
+  // Event handling logic
+});
+```
+3. Update schema if needed in `ponder.schema.ts`
+4. Run `pnpm run codegen` to generate types
 
 ### Testing
-
 ```bash
-# Run unit tests (when implemented)
-pnpm test
+# Start development environment
+make dev
 
-# Test GraphQL queries
-pnpm dev
-# Navigate to http://localhost:42069/graphql
+# In another terminal, run test queries
+deno run --node-modules-dir=auto --allow-net --allow-env --allow-read scripts/test-sql-deno.ts
 ```
 
-## 🚀 Deployment
+## 🚀 Production Deployment
 
-### Production with Docker
+### Docker Deployment
+```bash
+# Build and start all services
+make docker-up
 
-1. **Build and start services**
-   ```bash
-   docker-compose -f docker-compose.yml up -d --build
-   ```
+# Monitor logs
+make docker-logs
 
-2. **Monitor logs**
-   ```bash
-   docker-compose logs -f indexer
-   ```
+# Stop services
+make docker-down
+```
 
-3. **Scale horizontally**
-   ```bash
-   docker-compose up -d --scale indexer=3
-   ```
+### Standalone PostgreSQL
+```bash
+# Start PostgreSQL and PgAdmin only
+make postgres-up
 
-### Manual Deployment
+# Check status
+make postgres-status
 
-1. **Build the application**
-   ```bash
-   pnpm build
-   ```
-
-2. **Set production environment**
-   ```bash
-   export NODE_ENV=production
-   ```
-
-3. **Start the indexer**
-   ```bash
-   pnpm start
-   ```
-
-### Monitoring
-
-- **Logs**: Check `docker-compose logs` or application stdout
-- **Metrics**: Monitor PostgreSQL query performance
-- **Health**: Regular health check endpoint monitoring
-- **Alerts**: Set up alerts for missed blocks or connection failures
+# Create backup
+make postgres-backup
+```
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
-#### Connection Errors
-```
-Error: Failed to connect to RPC endpoint
-```
-**Solution**: Verify RPC URLs in `.env` and check network connectivity
+**RPC Connection Errors**
+- Verify ANKR_API_KEY is set correctly
+- Check network connectivity
+- Consider using fallback RPC endpoints
 
-#### Database Connection Failed
-```
-Error: ECONNREFUSED 127.0.0.1:5432
-```
-**Solution**: Ensure PostgreSQL is running: `make db-up`
-
-#### Out of Memory
-```
-JavaScript heap out of memory
-```
-**Solution**: Increase Node.js memory limit:
+**Database Connection Failed**
 ```bash
-export NODE_OPTIONS="--max-old-space-size=8192"
+make db-up  # Ensure PostgreSQL is running
 ```
 
-#### Indexing Lag
-**Symptoms**: GraphQL returns outdated data
-**Solution**: 
-- Check RPC rate limits
-- Verify WebSocket connections
-- Review `ponder.log` for errors
-
-### Debug Mode
-
-Enable verbose logging:
+**Type Errors After Schema Changes**
 ```bash
-export PONDER_LOG_LEVEL=debug
-pnpm dev
+pnpm run codegen  # Regenerate types
 ```
 
-### Logs Location
+**Indexing Performance**
+- Adjust `maxHistoricalBlockRange` in ponder.config.ts
+- Enable debug logging: `PONDER_LOG_LEVEL=debug`
 
-- **Docker**: `docker-compose logs indexer`
-- **Local**: Console output or `ponder.log`
-- **PostgreSQL**: `docker-compose logs postgres`
+## 📚 Documentation
+
+- **Project Status**: `docs/PROJECT_STATUS.md` - Current implementation state
+- **SQL over HTTP Guide**: `docs/SQL_OVER_HTTP.md` - Advanced query examples
+- **Event Implementation**: `docs/ABI_EVENTS_IMPLEMENTATION_STATUS.md`
+- **Architecture Details**: See inline documentation in source files
 
 ## 🤝 Contributing
 
-We welcome contributions! Please follow these guidelines:
-
-1. **Fork the repository**
-2. **Create a feature branch**
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run quality checks:
    ```bash
-   git checkout -b feature/your-feature-name
+   make lint-fix
+   make format
    ```
-3. **Make your changes**
-   - Follow existing code style
-   - Add tests for new features
-   - Update documentation
-4. **Commit with conventional commits**
-   ```bash
-   git commit -m "feat: add new indexing feature"
-   ```
-5. **Push and create a Pull Request**
-
-### Code Style
-
-- Use TypeScript for all new code
-- Follow ESLint configuration
-- Run `pnpm format` before committing
-- Add JSDoc comments for public APIs
-
-### Reporting Issues
-
-Please use GitHub Issues to report bugs or request features. Include:
-- Clear description of the issue
-- Steps to reproduce
-- Expected vs actual behavior
-- Environment details (OS, Node version, etc.)
+5. Submit a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see LICENSE file for details
 
 ## 🙏 Acknowledgments
 
-- [Ponder](https://ponder.sh) - The indexing framework
+- [Ponder](https://ponder.sh) - Indexing framework
 - [Viem](https://viem.sh) - Ethereum interface
-- Bridge Me Not Protocol contributors
-
-## 📞 Support
-
-- **Documentation**: [https://docs.bridgemenot.xyz](https://docs.bridgemenot.xyz)
-- **Discord**: [Join our community](https://discord.gg/bridgemenot)
-- **GitHub Issues**: [Report bugs](https://github.com/your-org/bmn-evm-contracts-indexer/issues)
+- [1inch](https://1inch.io) - Limit order protocol inspiration
+- Bridge Me Not Protocol team
 
 ---
 
-Built with ❤️ by the Bridge Me Not team
+Built for the Bridge Me Not ecosystem - enabling trustless cross-chain atomic swaps
