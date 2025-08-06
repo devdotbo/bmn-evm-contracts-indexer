@@ -18,6 +18,8 @@ import {
   limitOrderStatistics
 } from "ponder:schema";
 
+// Note: v2.1.0 event handlers are below in this file
+
 // Helper function to decode packed address from uint256
 function decodeAddress(packedAddress: bigint): string {
   // Extract the lower 160 bits (20 bytes) which contain the address
@@ -39,8 +41,8 @@ const SRC_IMPLEMENTATION = "0x77CC1A51dC5855bcF0d9f1c1FceaeE7fb855a535";
 const DST_IMPLEMENTATION = "0x36938b7899A17362520AA741C0E0dA0c8EfE5e3b";
 const FACTORY_ADDRESS = "0xB916C3edbFe574fFCBa688A6B92F72106479bD6c";
 
-// Handle SrcEscrowCreated events from Factory
-ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context }) => {
+// Handle SrcEscrowCreated events from Factory V2
+ponder.on("CrossChainEscrowFactoryV2:SrcEscrowCreated", async ({ event, context }) => {
   const chainId = context.chain.id;
   
   // Enhanced events emit the escrow address directly
@@ -166,8 +168,8 @@ ponder.on("CrossChainEscrowFactory:SrcEscrowCreated", async ({ event, context })
     }));
 });
 
-// Handle DstEscrowCreated events from Factory
-ponder.on("CrossChainEscrowFactory:DstEscrowCreated", async ({ event, context }) => {
+// Handle DstEscrowCreated events from Factory V2
+ponder.on("CrossChainEscrowFactoryV2:DstEscrowCreated", async ({ event, context }) => {
   const chainId = context.chain.id;
   
   // Both legacy and enhanced events have the same structure for DstEscrowCreated
