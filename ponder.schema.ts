@@ -143,3 +143,78 @@ export const bmnTokenHolder = onchainTable("bmn_token_holder", (t) => ({
   lastTransferBlock: t.bigint().notNull(),
   transferCount: t.bigint().notNull(),
 }));
+
+// Limit Order Protocol Tables
+export const limitOrder = onchainTable("limit_order", (t) => ({
+  id: t.text().primaryKey(), // chainId-orderHash
+  chainId: t.integer().notNull(),
+  orderHash: t.hex().notNull(),
+  maker: t.text().notNull(),
+  makerAsset: t.text().notNull(),
+  takerAsset: t.text().notNull(),
+  makingAmount: t.bigint().notNull(),
+  takingAmount: t.bigint().notNull(),
+  remainingAmount: t.bigint().notNull(),
+  status: t.text().notNull(), // "active", "filled", "partially_filled", "cancelled"
+  createdAt: t.bigint().notNull(),
+  updatedAt: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+export const orderFilled = onchainTable("order_filled", (t) => ({
+  id: t.text().primaryKey(), // chainId-transactionHash-logIndex
+  chainId: t.integer().notNull(),
+  orderHash: t.hex().notNull(),
+  remainingAmount: t.bigint().notNull(),
+  taker: t.text(),
+  blockNumber: t.bigint().notNull(),
+  blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+  logIndex: t.integer().notNull(),
+}));
+
+export const orderCancelled = onchainTable("order_cancelled", (t) => ({
+  id: t.text().primaryKey(), // chainId-orderHash
+  chainId: t.integer().notNull(),
+  orderHash: t.hex().notNull(),
+  maker: t.text(),
+  cancelledAt: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+export const bitInvalidatorUpdated = onchainTable("bit_invalidator_updated", (t) => ({
+  id: t.text().primaryKey(), // chainId-maker-slotIndex
+  chainId: t.integer().notNull(),
+  maker: t.text().notNull(),
+  slotIndex: t.bigint().notNull(),
+  slotValue: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+export const epochIncreased = onchainTable("epoch_increased", (t) => ({
+  id: t.text().primaryKey(), // chainId-maker-series
+  chainId: t.integer().notNull(),
+  maker: t.text().notNull(),
+  series: t.bigint().notNull(),
+  newEpoch: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+  blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// Protocol statistics
+export const limitOrderStatistics = onchainTable("limit_order_statistics", (t) => ({
+  id: t.text().primaryKey(), // chainId
+  chainId: t.integer().notNull(),
+  totalOrders: t.bigint().notNull(),
+  activeOrders: t.bigint().notNull(),
+  filledOrders: t.bigint().notNull(),
+  partiallyFilledOrders: t.bigint().notNull(),
+  cancelledOrders: t.bigint().notNull(),
+  totalVolume: t.bigint().notNull(),
+  lastUpdatedBlock: t.bigint().notNull(),
+}));
