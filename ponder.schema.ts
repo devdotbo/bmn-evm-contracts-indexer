@@ -95,6 +95,7 @@ export const atomicSwap = onchainTable("atomic_swap", (t) => ({
   completedAt: t.bigint(),
   cancelledAt: t.bigint(),
   secret: t.hex(),
+  postInteraction: t.boolean().notNull().default(false), // Track if created via PostInteraction
 }));
 
 // Statistics and aggregations
@@ -314,5 +315,61 @@ export const factoryMetrics = onchainTable("factory_metrics", (t) => ({
   failedSwaps: t.bigint().notNull(),
   blockNumber: t.bigint().notNull(),
   blockTimestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.2.0 PostInteraction Support - 1inch Order Tracking
+export const postInteractionOrder = onchainTable("post_interaction_order", (t) => ({
+  id: t.text().primaryKey(), // orderHash
+  orderHash: t.hex().notNull(), // Note: Using orderHash as id makes it effectively unique
+  maker: t.hex().notNull(),
+  taker: t.hex().notNull(),
+  makerAsset: t.hex().notNull(),
+  takerAsset: t.hex().notNull(),
+  makingAmount: t.bigint().notNull(),
+  takingAmount: t.bigint().notNull(),
+  srcEscrow: t.hex(), // Set when PostInteraction executes
+  dstEscrow: t.hex(), // Set when PostInteraction executes
+  status: t.text().notNull(), // "pending", "filled", "cancelled"
+  filledAt: t.bigint(),
+  chainId: t.integer().notNull(),
+  blockNumber: t.bigint().notNull(),
+  timestamp: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.2.0 PostInteraction Support - Resolver Whitelist for PostInteraction
+export const postInteractionResolverWhitelist = onchainTable("post_interaction_resolver_whitelist", (t) => ({
+  id: t.text().primaryKey(), // resolver-chainId
+  resolver: t.hex().notNull(),
+  chainId: t.integer().notNull(),
+  isWhitelisted: t.boolean().notNull(),
+  whitelistedAt: t.bigint().notNull(),
+  removedAt: t.bigint(),
+  blockNumber: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.2.0 PostInteraction Support - Maker Whitelist
+export const makerWhitelist = onchainTable("maker_whitelist", (t) => ({
+  id: t.text().primaryKey(), // maker-chainId
+  maker: t.hex().notNull(),
+  chainId: t.integer().notNull(),
+  isWhitelisted: t.boolean().notNull(),
+  whitelistedAt: t.bigint().notNull(),
+  removedAt: t.bigint(),
+  blockNumber: t.bigint().notNull(),
+  transactionHash: t.hex().notNull(),
+}));
+
+// V2.2.0 PostInteraction Support - Link PostInteraction to Escrows
+export const postInteractionEscrow = onchainTable("post_interaction_escrow", (t) => ({
+  id: t.text().primaryKey(), // orderHash-escrowType
+  orderHash: t.hex().notNull(),
+  escrowAddress: t.hex().notNull(),
+  escrowType: t.text().notNull(), // "src", "dst"
+  chainId: t.integer().notNull(),
+  createdAt: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
   transactionHash: t.hex().notNull(),
 }));

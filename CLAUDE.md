@@ -254,12 +254,32 @@ The project includes a comprehensive Makefile that:
 - Groups related commands logically (dev, production, database, utilities)
 - Handles complex multi-step operations (e.g., `make reset`, `make setup`)
 
+### ABI Analysis Tool
+The project uses `abi2human` for analyzing and understanding contract ABIs:
+- **Help Command**: Run `abi2human --help` to see all available options
+- **Purpose**: Convert ABI JSON files to human-readable format
+- **Usage**: Helpful for understanding contract interfaces and events
+- **Integration**: Use when adding new contract ABIs or updating event handlers
+
+Example usage:
+```bash
+# Get help and see all options
+abi2human --help
+
+# Analyze a contract ABI
+abi2human abis/CrossChainEscrowFactoryV2.json
+
+# Generate event signatures
+abi2human --events abis/CrossChainEscrowFactoryV2.json
+```
+
 ### Best Practices
 1. **Initial Setup**: Run `make setup` to configure environment and dependencies
 2. **Development**: Use `make dev` for hot-reloading development
 3. **Database Management**: Prefer Make commands for consistent database operations
 4. **Docker Deployment**: Use `make docker-*` commands for production deployment
 5. **Code Quality**: Run `make lint-fix` and `make format` before committing
+6. **ABI Analysis**: Use `abi2human` when working with new contract ABIs
 
 ## Important Notes
 
@@ -282,6 +302,39 @@ For detailed information about the current project status, completed features, l
   - Future enhancement roadmap
 
 This document is essential for understanding what work remains and the priority of upcoming tasks.
+
+## Docker Compose Workflow
+
+When working with Docker Compose for this project:
+
+1. **Use Existing Cache**: Don't always remove the cache; use the existing cache when possible for faster builds
+2. **Check Logs Without Following**: Use `docker compose up` (or `docker-compose up`) and check logs without the `-f` flag to avoid following logs
+3. **Quick Status Checks**: Run `docker compose up` briefly to check service status, then examine logs separately
+4. **Preserve Build Artifacts**: Avoid unnecessary clean operations that remove useful build caches
+
+Example workflow:
+```bash
+# Start services and check status (don't follow logs)
+docker compose up -d
+docker compose logs  # Check logs without following
+
+# Or start in foreground briefly then check
+docker compose up  # Start and see initial output
+# Ctrl+C after verifying startup
+docker compose logs --tail=50  # Check recent logs
+```
+
+## Task Delegation Strategy
+
+When implementing complex features:
+
+1. **Act as Orchestrator**: Coordinate tasks without directly reading/changing too many files
+2. **Use Software Engineer Sub-agents**: Delegate specific implementation tasks to specialized sub-agents for:
+   - Fresh, clean context on specific files
+   - Sharp, detailed, precision changes
+   - Well-scoped tasks with clear objectives
+3. **Serial Execution**: Run most sub-agent tasks serially for better coordination
+4. **Clear Task Prescription**: Provide detailed, well-prescribed tasks to sub-agents
 
 ## Git Commit Strategy
 

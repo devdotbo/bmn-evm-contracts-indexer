@@ -103,6 +103,10 @@ psql: ## Connect to PostgreSQL
 	@echo "Connecting to PostgreSQL..."
 	@docker-compose exec postgres psql -U postgres -d ponder
 
+.PHONY: check-events
+check-events: ## Check all events in the database (comprehensive summary)
+	@./scripts/check-events.sh
+
 # PostgreSQL Standalone Commands
 .PHONY: postgres-up
 postgres-up: ## Start PostgreSQL and PgAdmin using standalone compose file
