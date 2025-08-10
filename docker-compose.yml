@@ -22,7 +22,9 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - bmn-network
+      bmn-network:
+        aliases:
+          - bmn-postgres
 
 
   # Ponder Indexer Service
@@ -84,7 +86,9 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - bmn-network
+      bmn-network:
+        aliases:
+          - bmn-indexer
     logging:
       driver: "json-file"
       options:
@@ -121,5 +125,5 @@ volumes:
 # Networks
 networks:
   bmn-network:
-    name: bmn-network
-    driver: bridge
+    external: true
+    name: ${DOCKER_SHARED_NETWORK:-bmn-network}

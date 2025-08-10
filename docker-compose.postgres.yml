@@ -71,7 +71,9 @@ services:
       start_period: 20s
     
     networks:
-      - bmn-postgres-network
+      bmn-postgres-network:
+        aliases:
+          - bmn-postgres
     
     # Resource limits
     deploy:
@@ -111,13 +113,5 @@ volumes:
 
 networks:
   bmn-postgres-network:
-    name: bmn-postgres-network
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: ${POSTGRES_NETWORK_SUBNET:-172.28.0.0/16}
-    driver_opts:
-      com.docker.network.bridge.name: br-bmn-postgres
-      com.docker.network.bridge.enable_icc: "true"
-      com.docker.network.bridge.enable_ip_masquerade: "true"
+    external: true
+    name: ${DOCKER_SHARED_NETWORK:-bmn-network}
