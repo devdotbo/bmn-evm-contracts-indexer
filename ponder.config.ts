@@ -26,12 +26,12 @@ export default createConfig({
     base: {
       id: 8453,
       rpc: http(`https://${ERPC_URL}/main/evm/8453`),
-      ws: `wss://${ERPC_URL}/main/evm/8453`,
+      ws: `wss://rpc.ankr.com/base/ws/${ANKR_API_KEY}`,
     },
     optimism: {
       id: 10,
       rpc: http(`https://${ERPC_URL}/main/evm/10`),
-      ws: `wss://${ERPC_URL}/main/evm/10`,
+      ws: `wss://rpc.ankr.com/optimism/ws/${ANKR_API_KEY}`,
     },
   },
   contracts: {
