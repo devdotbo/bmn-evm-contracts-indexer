@@ -33,10 +33,13 @@ function decodeAddress(packedAddress: bigint): string {
 
 // Helper function to find AtomicSwap by hashlock
 async function findAtomicSwapByHashlock(context: any, hashlock: string) {
-  const swaps = await context.db.select(atomicSwap, {
-    where: (row: any) => row.hashlock === hashlock,
-  });
-  return swaps.length > 0 ? swaps[0] : null;
+  // Try temporary record created when only DstEscrow is known
+  const temp = await context.db.find(atomicSwap, { id: `temp-${hashlock}` });
+  if (temp) return temp;
+
+  // For PostInteraction flows, orderHash equals hashlock, so the primary key may match
+  const record = await context.db.find(atomicSwap, { id: hashlock });
+  return record ?? null;
 }
 
 // Constants for escrow implementations (same across all chains)
