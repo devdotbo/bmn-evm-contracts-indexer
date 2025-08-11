@@ -50,18 +50,10 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-ponder}:${POSTGRES_PASSWORD:-ponder123}@postgres:5432/${POSTGRES_DB:-bmn_indexer}
       DATABASE_SCHEMA: ${DATABASE_SCHEMA:-public}
       
-      # RPC Endpoints
-      PONDER_RPC_URL_8453: ${PONDER_RPC_URL_8453}
-      PONDER_RPC_URL_42793: ${PONDER_RPC_URL_42793}
-      
-      # WebSocket Endpoints (optional)
-      PONDER_WS_URL_8453: ${PONDER_WS_URL_8453:-}
-      PONDER_WS_URL_42793: ${PONDER_WS_URL_42793:-}
+      ERPC_URL: ${ERPC_URL:-}
       
       # Multi-RPC Configuration for Etherlink
       ANKR_API_KEY: ${ANKR_API_KEY:-}
-      THIRDWEB_API_KEY: ${THIRDWEB_API_KEY:-}
-      ZEEVE_RPC_URL: ${ZEEVE_RPC_URL:-}
       
       # Start Blocks
       BASE_START_BLOCK: ${BASE_START_BLOCK:-0}

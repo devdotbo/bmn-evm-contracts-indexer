@@ -14,8 +14,6 @@ const BMN_TOKEN_ADDRESS = "0x8287CD2aC7E227D9D927F998EB600a0683a832A1";
 const LIMIT_ORDER_PROTOCOL_ADDRESS = "0x111111125421ca6dc452d28d826b88f5ccd8c793"; // 1inch SimpleLimitOrderProtocol
 const ANKR_API_KEY = process.env.ANKR_API_KEY || "";
 
-const ERPC_URL = process.env.ERPC_URL || "";
-
 export default createConfig({
   ordering: "multichain",
   database: {
@@ -25,13 +23,13 @@ export default createConfig({
   chains: {
     base: {
       id: 8453,
-      rpc: http(`https://${ERPC_URL}/main/evm/8453`),
-      ws: `wss://${ERPC_URL}/main/evm/8453`,
+      rpc: http(`https://rpc.ankr.com/base/${ANKR_API_KEY}`),
+      ws: `wss://rpc.ankr.com/base/ws/${ANKR_API_KEY}`,
     },
     optimism: {
       id: 10,
-      rpc: http(`https://${ERPC_URL}/main/evm/8453`),
-      ws: `wss://${ERPC_URL}/main/evm/10`,
+      rpc: http(`https://rpc.ankr.com/optimism/${ANKR_API_KEY}`),
+      ws: `wss://rpc.ankr.com/optimism/ws/${ANKR_API_KEY}`,
     },
   },
   contracts: {
