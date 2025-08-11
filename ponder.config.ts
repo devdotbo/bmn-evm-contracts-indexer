@@ -30,7 +30,7 @@ export default createConfig({
     },
     optimism: {
       id: 10,
-      rpc: http(`https://${ERPC_URL}/main/evm/8453`),
+      rpc: http(`https://${ERPC_URL}/main/evm/10`),
       ws: `wss://${ERPC_URL}/main/evm/10`,
     },
   },
