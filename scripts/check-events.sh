@@ -27,7 +27,7 @@ echo ""
 
 echo "5. V2.2.0 Factory Handlers:"
 echo "-----------------------------------"
-grep -n "CrossChainEscrowFactoryV2_2:" src/index.ts | head -10
+grep -n "SimplifiedEscrowFactoryV2_3:" src/index.ts | head -10
 echo ""
 
 echo "6. Schema Tables for PostInteraction:"

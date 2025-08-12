@@ -22,7 +22,7 @@ import {
   postInteractionEscrow,
 } from "ponder:schema";
 
-// Note: v2.2.0 event handlers with PostInteraction support are included
+// Note: v2.3.0 factory events (same event names as v2.2)
 
 // Helper function to decode packed address from uint256
 function decodeAddress(packedAddress: bigint): string {
@@ -382,7 +382,7 @@ async function updateSwapStatisticsForPostInteraction(
 
 // Handle PostInteractionEscrowCreated events
 ponder.on(
-  "CrossChainEscrowFactoryV2_2:PostInteractionEscrowCreated",
+  "SimplifiedEscrowFactoryV2_3:PostInteractionEscrowCreated",
   async ({ event, context }) => {
     const chainId = context.chain.id;
     const { escrow, hashlock, protocol, taker, amount } = event.args;
@@ -456,7 +456,7 @@ ponder.on(
 
 // Handle ResolverWhitelisted events
 ponder.on(
-  "CrossChainEscrowFactoryV2_2:ResolverWhitelisted",
+  "SimplifiedEscrowFactoryV2_3:ResolverWhitelisted",
   async ({ event, context }) => {
     const chainId = context.chain.id;
     const { resolver } = event.args;
@@ -490,7 +490,7 @@ ponder.on(
 
 // Handle ResolverRemoved events
 ponder.on(
-  "CrossChainEscrowFactoryV2_2:ResolverRemoved",
+  "SimplifiedEscrowFactoryV2_3:ResolverRemoved",
   async ({ event, context }) => {
     const chainId = context.chain.id;
     const { resolver } = event.args;
@@ -530,7 +530,7 @@ ponder.on(
 
 // Handle MakerWhitelisted events
 ponder.on(
-  "CrossChainEscrowFactoryV2_2:MakerWhitelisted",
+  "SimplifiedEscrowFactoryV2_3:MakerWhitelisted",
   async ({ event, context }) => {
     const chainId = context.chain.id;
     const { maker } = event.args;
@@ -564,7 +564,7 @@ ponder.on(
 
 // Handle MakerRemoved events
 ponder.on(
-  "CrossChainEscrowFactoryV2_2:MakerRemoved",
+  "SimplifiedEscrowFactoryV2_3:MakerRemoved",
   async ({ event, context }) => {
     const chainId = context.chain.id;
     const { maker } = event.args;
@@ -715,9 +715,9 @@ ponder.on(
 // V2.2.0 Factory Event Handlers - Compatibility with existing events
 // ==========================================
 
-// Update existing SrcEscrowCreated handler to be compatible with v2.2.0
+// SrcEscrowCreated handler
 ponder.on(
-  "CrossChainEscrowFactoryV2_2:SrcEscrowCreated",
+  "SimplifiedEscrowFactoryV2_3:SrcEscrowCreated",
   async ({ event, context }) => {
     const chainId = context.chain.id;
 
@@ -850,9 +850,9 @@ ponder.on(
   },
 );
 
-// Update existing DstEscrowCreated handler to be compatible with v2.2.0
+// DstEscrowCreated handler
 ponder.on(
-  "CrossChainEscrowFactoryV2_2:DstEscrowCreated",
+  "SimplifiedEscrowFactoryV2_3:DstEscrowCreated",
   async ({ event, context }) => {
     const chainId = context.chain.id;
 

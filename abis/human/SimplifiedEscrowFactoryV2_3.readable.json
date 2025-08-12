@@ -1,0 +1,11 @@
+[
+  "event SrcEscrowCreated(address indexed escrow, bytes32 indexed orderHash, address indexed maker, address taker, uint256 amount)",
+  "event DstEscrowCreated(address indexed escrow, bytes32 indexed hashlock, address indexed taker)",
+  "event ResolverWhitelisted(address indexed resolver)",
+  "event ResolverRemoved(address indexed resolver)",
+  "event MakerWhitelisted(address indexed maker)",
+  "event MakerRemoved(address indexed maker)",
+  "event EmergencyPause(bool paused)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)",
+  "event PostInteractionEscrowCreated(address indexed escrow, bytes32 indexed hashlock, address indexed protocol, address taker, uint256 amount)"
+]

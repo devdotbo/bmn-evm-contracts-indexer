@@ -2,14 +2,13 @@ import { createConfig } from "ponder";
 import { http } from "viem";
 
 // Import ABIs
-import CrossChainEscrowFactoryV2_2Abi from "./abis/CrossChainEscrowFactoryV2_2.json";
-import BmnTokenAbi from "./abis/BmnToken.json";
-import SimpleLimitOrderProtocolAbi from "./abis/SimpleLimitOrderProtocol.json";
+import { parseAbi } from "viem";
+import humanFactoryV2_3 from "./abis/human/SimplifiedEscrowFactoryV2_3.readable.json" assert { type: "json" };
+import humanBmnToken from "./abis/human/BmnToken.readable.json" assert { type: "json" };
+import humanSLOP from "./abis/human/SimpleLimitOrderProtocol.readable.json" assert { type: "json" };
 
 // Constants
-const FACTORY_ADDRESS_V2_2 = "0xB436dBBee1615dd80ff036Af81D8478c1FF1Eb68"; // v2.2.0 with PostInteraction - ACTIVE
-const FACTORY_ADDRESS_V2_1 = "0xBc9A20A9FCb7571B2593e85D2533E10e3e9dC61A"; // v2.1.0 - DEPRECATED
-const FACTORY_ADDRESS_V1 = "0xB916C3edbFe574fFCBa688A6B92F72106479bD6c"; // v1.1.0 - DEPRECATED
+const FACTORY_ADDRESS_V2_3 = process.env.BMN_FACTORY_ADDRESS || "0xdebE6F4bC7BaAD2266603Ba7AfEB3BB6dDA9FE0A"; // v2.3.0 - ACTIVE
 const BMN_TOKEN_ADDRESS = "0x8287CD2aC7E227D9D927F998EB600a0683a832A1";
 const LIMIT_ORDER_PROTOCOL_ADDRESS = "0x111111125421ca6dc452d28d826b88f5ccd8c793"; // 1inch SimpleLimitOrderProtocol
 const ANKR_API_KEY = process.env.ANKR_API_KEY || "";
@@ -35,24 +34,24 @@ export default createConfig({
     },
   },
   contracts: {
-    // Track factory v2.2.0 events on both chains (with PostInteraction capability)
-    CrossChainEscrowFactoryV2_2: {
-      abi: CrossChainEscrowFactoryV2_2Abi.abi as any,
-      address: FACTORY_ADDRESS_V2_2,
+    // Track factory v2.3.0 events on both chains
+    SimplifiedEscrowFactoryV2_3: {
+      abi: parseAbi(humanFactoryV2_3 as unknown as string[]),
+      address: FACTORY_ADDRESS_V2_3,
       chain: {
         base: {
-          address: FACTORY_ADDRESS_V2_2,
-          startBlock: 33809842, // Keep existing start block from environment
+          address: FACTORY_ADDRESS_V2_3,
+          startBlock: 34110108,
         },
         optimism: {
-          address: FACTORY_ADDRESS_V2_2,
-          startBlock: 139404873, // Keep existing start block from environment
+          address: FACTORY_ADDRESS_V2_3,
+          startBlock: 139706679,
         },
       },
     },
     // Track BMN token events on both chains
     BmnToken: {
-      abi: BmnTokenAbi.abi as any,
+      abi: parseAbi(humanBmnToken as unknown as string[]),
       address: BMN_TOKEN_ADDRESS,
       chain: {
         base: {
@@ -67,7 +66,7 @@ export default createConfig({
     },
     // Track 1inch SimpleLimitOrderProtocol events on both chains for PostInteraction integration
     SimpleLimitOrderProtocol: {
-      abi: SimpleLimitOrderProtocolAbi.abi as any,
+      abi: parseAbi(humanSLOP as unknown as string[]),
       address: LIMIT_ORDER_PROTOCOL_ADDRESS,
       chain: {
         base: {
