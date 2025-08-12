@@ -867,7 +867,7 @@ ponder.on(
       chainId,
       escrowAddress: escrow,
       hashlock,
-      taker: decodeAddress(taker),
+      taker: taker, // v2.3 already provides address as string
       srcCancellationTimestamp: 0n, // Will be set when we have more info
       createdAt: event.block.timestamp,
       blockNumber: event.block.number,
@@ -883,7 +883,7 @@ ponder.on(
       await context.db.update(atomicSwap, { id: existingSwap.id }).set({
         dstChainId: chainId,
         dstEscrowAddress: escrow,
-        dstTaker: decodeAddress(taker),
+        dstTaker: taker, // v2.3 already provides address as string
         status:
           existingSwap.status === "src_created"
             ? "both_created"
@@ -905,7 +905,7 @@ ponder.on(
         srcMaker: `0x${"0".repeat(40)}`, // Will be filled later
         srcTaker: `0x${"0".repeat(40)}`,
         dstMaker: `0x${"0".repeat(40)}`,
-        dstTaker: decodeAddress(taker),
+        dstTaker: taker, // v2.3 already provides address as string
         srcToken: `0x${"0".repeat(40)}`,
         srcAmount: 0n,
         dstToken: `0x${"0".repeat(40)}`,
