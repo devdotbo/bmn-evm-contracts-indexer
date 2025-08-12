@@ -72,11 +72,11 @@ export default createConfig({
       chain: {
         base: {
           address: LIMIT_ORDER_PROTOCOL_ADDRESS,
-          startBlock: 33809842, // Align with factory v2.2.0 start block
+          startBlock: 34103669, // Align with factory v2.2.0 start block
         },
         optimism: {
           address: LIMIT_ORDER_PROTOCOL_ADDRESS,
-          startBlock: 139404873, // Align with factory v2.2.0 start block
+          startBlock: 139698379, // Align with factory v2.2.0 start block
         },
       },
     },
